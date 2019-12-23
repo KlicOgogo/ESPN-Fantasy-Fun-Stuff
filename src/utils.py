@@ -1,4 +1,4 @@
-from selenium import webdriver
+from selenium.webdriver import Chrome
 
 
 def get_league_name(scoreboard_html_source):
@@ -19,32 +19,31 @@ def get_places(sorted_scores):
     return places
 
 
-def get_week_stats(scoreboard_html_source, league='NHL'):
-    matchup_results = []
-    matchups = scoreboard_html_source.findAll('div', {'Scoreboard__Row'})
-    for matchup in matchups:
-        opponents = matchup.findAll('li', 'ScoreboardScoreCell__Item')
-        res = []
-        for opp in opponents:
-            team = opp.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text
-            if league == 'NHL':
-                score = float(opp.findAll('div', {'class': 'ScoreCell__Score'})[0].text)
-            else:
-                score_nba = opp.findAll('div', {'class': 'ScoreCell__Score'})[0].text.split('-')
-                score = '-'.join(map(lambda x: str(x) if x % 1.0 > 1e-7 else str(int(x)), map(float, score_nba)))
-            res.append((team, score))
-        matchup_results.append(res)
-    return matchup_results
-
-
-def get_espn_fantasy_hockey_scoreboard_stats(league_id, n_weeks):
-    espn_scoreboard_url = 'https://fantasy.espn.com/hockey/league/scoreboard'
+def get_scoreboard_stats(league_id, n_weeks, type='hockey', scoring='points'):
+    espn_scoreboard_url = f'https://fantasy.espn.com/{type}/league/scoreboard'
     urls = [f'{espn_scoreboard_url}?leagueId={league_id}&matchupPeriodId={i+1}' for i in range(n_weeks)]
     all_matchups = []
-    browser = webdriver.Chrome()
-    for item in urls:
-        browser.get(item)
+    BROWSER = Chrome()
+    for u in urls:
+        browser.get(u)
         time.sleep(8)
-        html_soup = BeautifulSoup(browser.page_source)
-        all_matchups.append(get_week_stats(html_soup))
+        html_soup = BeautifulSoup(BROWSER.page_source)
+        all_matchups.append(get_week_scores(html_soup, scoring))
     return all_matchups
+
+
+def get_week_scores(scoreboard_html_source, scoring='points'):
+    if scoring not in ['points', 'categories']:
+        raise Exception('Wrong scoring parameter!')
+    matchups = []
+    matchups_html = scoreboard_html_source.findAll('div', {'Scoreboard__Row'})
+    for m in matchups_html:
+        opponents = m.findAll('li', 'ScoreboardScoreCell__Item')
+        res = []
+        for o in opponents:
+            team = o.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text
+            score_str = o.findAll('div', {'class': 'ScoreCell__Score'})[0].text
+            score = float(score_str) if scoring == 'points' else score_str
+            res.append((team, score))
+        matchups.append(res)
+    return matchups
