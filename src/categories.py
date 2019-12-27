@@ -61,6 +61,34 @@ def _get_expected_category_stats(score_pairs, category):
     return result
 
 
+def get_expected_score_and_result(results, categories):
+    res = {}
+    opponents_dict = {}
+    for matchup in results:
+        opponents_dict[matchup[0][0]] = matchup[1][0]
+        opponents_dict[matchup[1][0]] = matchup[0][0]
+        res[matchup[0][0]] = np.array([0.0, 0.0, 0.0])
+        res[matchup[1][0]] = np.array([0.0, 0.0, 0.0])
+    scores_info = get_scores_info(results)
+
+    for i, cat in enumerate(categories):
+        pairs = [(team, scores_info[team][i]) for team in scores_info]
+        expected_stats = _get_expected_category_stats(pairs, cat)
+        for team in expected_stats:
+            concatted = np.vstack((expected_stats[team], res[team]))
+            res[team] = concatted.sum(axis=0)
+    matchup_results = {}
+    for team in opponents_dict:
+        if list(res[team][[0, 2, 1]]) > list(res[opponents_dict[team]][[0, 2, 1]]):
+            matchup_results[team] = 'W'
+        elif list(res[team][[0, 2, 1]]) < list(res[opponents_dict[team]][[0, 2, 1]]):
+            matchup_results[team] = 'L'
+        else:
+            matchup_results[team] = 'D'
+    exp_scores = {team: '-'.join(map(lambda x: format_value(np.round(x, 1)), res[team])) for team in res}
+    return exp_scores, matchup_results
+
+
 def get_matchup_result(team_stat, opp_stat, categories):
     win_count = 0
     lose_count = 0
