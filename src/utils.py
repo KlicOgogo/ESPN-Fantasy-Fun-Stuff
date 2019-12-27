@@ -19,14 +19,14 @@ def get_places(sorted_scores):
     return places
 
 
-def get_scoreboard_stats(league_id, n_weeks, type='hockey', scoring='points'):
+def get_scoreboard_stats(league_id, type, n_weeks, sleep_timeout, scoring='points'):
     espn_scoreboard_url = f'https://fantasy.espn.com/{type}/league/scoreboard'
     urls = [f'{espn_scoreboard_url}?leagueId={league_id}&matchupPeriodId={i+1}' for i in range(n_weeks)]
     all_matchups = []
     BROWSER = Chrome()
     for u in urls:
         browser.get(u)
-        time.sleep(8)
+        time.sleep(sleep_timeout)
         html_soup = BeautifulSoup(BROWSER.page_source)
         all_matchups.append(get_week_scores(html_soup, scoring))
     return all_matchups
