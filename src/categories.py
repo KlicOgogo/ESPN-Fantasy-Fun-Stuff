@@ -3,11 +3,10 @@ from operator import itemgetter
 
 import numpy as np
 
-from src.utils import get_league_name, get_places, get_week_scores
+from src.utils import get_league_name, get_places, get_week_scores, ZERO_RES
 
 
 NUMBERED_VALUE_COLS = {'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS', 'TP'}
-ZERO_RES = 1e-7
 
 
 def format_value(x):
@@ -79,6 +78,7 @@ def get_expected_score_and_result(results, categories):
             res[team] = concatted.sum(axis=0)
     matchup_results = {}
     for team in opponents_dict:
+        print()
         if list(res[team][[0, 2, 1]]) > list(res[opponents_dict[team]][[0, 2, 1]]):
             matchup_results[team] = 'W'
         elif list(res[team][[0, 2, 1]]) < list(res[opponents_dict[team]][[0, 2, 1]]):
