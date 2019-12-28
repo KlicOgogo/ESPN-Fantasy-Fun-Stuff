@@ -1,7 +1,7 @@
 TOP_PERCENTAGE = 0.4
 
 
-def color_category_column(s):
+def color_extremums(s):
     attr = 'background-color'
     return [f'{attr}: lightgreen' if v == s['Best'] else f'{attr}: orange' if v == s['Worst'] else '' for v in s]
 
