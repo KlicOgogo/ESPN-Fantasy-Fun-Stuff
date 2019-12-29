@@ -4,7 +4,8 @@ from operator import itemgetter as _itemgetter
 import pandas as pd
 import numpy as np
 
-from src import styling, utils
+from src import styling
+from src.utils import get_places, get_scoreboard_stats, ZERO
 
 
 def get_luck_score(matchups, places):
@@ -40,7 +41,7 @@ def get_sorted_week_scores(week_matchups):
     return sorted(scores, key=_itemgetter(1), reverse=True)
 
 
-def display_week_stats(leagues, sport, n_weeks, sleep_timeout=10):
+def display_week_stats(leagues, sport, week, sleep_timeout=10):
     all_scores_dict = defaultdict(list)
     for league in leagues:
         luck_score = defaultdict(list)
@@ -48,7 +49,7 @@ def display_week_stats(leagues, sport, n_weeks, sleep_timeout=10):
         places = defaultdict(list)
         opp_places = defaultdict(list)
 
-        all_matchups, _, league_name = utils.get_scoreboard_stats(league, sport, n_weeks, sleep_timeout)
+        all_matchups, _, league_name = get_scoreboard_stats(league, sport, week, sleep_timeout)
         for week_results in all_matchups:
             opp_dict = {}
             for sc in week_results:
@@ -58,9 +59,9 @@ def display_week_stats(leagues, sport, n_weeks, sleep_timeout=10):
                 all_scores_dict[(sc[1][0], league_name)].append(sc[1][1])
 
             week_scores = get_sorted_week_scores(week_results)
-            week_places = utils.get_places(week_scores)
+            week_places = get_places(week_scores)
             week_luck_score = get_luck_score(week_results, week_places)
-            format_lambda = lambda x: x if x % 1.0 > utils.ZERO else int(x)
+            format_lambda = lambda x: x if x % 1.0 > ZERO else int(x)
             for team in week_luck_score:
                 luck_score[team].append(format_lambda(week_luck_score[team]))
                 places[team].append(format_lambda(week_places[team]))
@@ -73,7 +74,7 @@ def display_week_stats(leagues, sport, n_weeks, sleep_timeout=10):
             opp_luck_score[team].append(np.sum(opp_luck_score[team]))
             opp_places[team].append(np.sum(opp_places[team]))
 
-        weeks = [f'Week {i+1}' for i in range(n_weeks)]
+        weeks = [f'Week {w}' for w in range(1, week + 1)]
         cols = weeks + ['SUM']
         styles = [dict(selector='caption', props=[('text-align', 'center')])]
 

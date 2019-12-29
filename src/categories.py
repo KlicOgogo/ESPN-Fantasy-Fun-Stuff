@@ -208,14 +208,8 @@ def display_last_week_stats(is_each_category_type, league_name, scoreboard_html_
     display(final_df_styler)
 
 
-
 def display_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
-    cat_limit = 7
-    win_limit = 10
-    total_limit = 10
-
     for league in leagues:
-
         all_scores = defaultdict(list)
         all_matchup_results = defaultdict(list)
         all_exp_scores = defaultdict(list)
@@ -223,7 +217,6 @@ def display_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
         all_matchups_won = defaultdict(list)
         
         all_matchups, soups, league_name = get_scoreboard_stats(league, sport, week, sleep_timeout, scoring='categories')
-
         display_last_week_stats(league in cat_subset, league_name, soups[-1], all_matchups[-1], week)
 
         for scores, scoreboard_html_source in zip(all_matchups, soups):
@@ -286,48 +279,48 @@ def display_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
             res = list(map(lambda x: np.round(x, 1), stats_array.sum(axis=0)))
             all_matchups_won[team].append('-'.join(map(format_value, res)))
         
-        table_data_dict = {team : all_exp_scores[team][len(all_exp_scores[team])-1-cat_limit:] for team in all_exp_scores}
+        table_data_dict = {team: all_exp_scores[team][len(all_exp_scores[team])-8:] for team in all_exp_scores}
         for team in table_data_dict:
             table_data_dict[team].append(all_scores[team][-1])
             table_data_dict[team].extend(get_diff(table_data_dict[team][-1], table_data_dict[team][-2]))
             
-        table_win_data_dict = {team : all_matchup_exp_results[team][len(all_matchup_exp_results[team])-1-win_limit:] for team in all_matchup_exp_results}
+        table_win_data_dict = {team: all_matchup_exp_results[team] for team in all_matchup_exp_results}
         for team in table_win_data_dict:
             table_win_data_dict[team].append(all_matchup_results[team][-1])
             table_win_data_dict[team].extend(get_diff(table_win_data_dict[team][-1], table_win_data_dict[team][-2]))
         
-        matchups_data_dict = {team: all_matchups_won[team][len(all_matchups_won[team]) - 1 - total_limit:] for team in all_matchups_won}
+        matchups_data_dict = {team: all_matchups_won[team] for team in all_matchups_won}
         for team in matchups_data_dict:
             matchups_data_dict[team].extend(map(int, matchups_data_dict[team].pop().split('-')))
 
         df_matchups = pd.DataFrame(data=list(matchups_data_dict.values()), index=matchups_data_dict.keys(),
-                                   columns=[f'week {i+1}' for i in range(week - total_limit, week)] + ['W', 'L', 'D'])
+                                   columns=[f'week {w}' for w in range(1, week + 1)] + ['W', 'L', 'D'])
         df_matchups = df_matchups.sort_values(['W', 'D'], ascending=False)
         to_add = pd.DataFrame(data=list(get_best_and_worst_rows(df_matchups)), index=['Best', 'Worst'])
         df_matchups = df_matchups.append(to_add, sort=False)
         styles = [dict(selector='caption', props=[('text-align', 'center')])]
         df_matchups_styler = df_matchups.style.set_table_styles(styles).set_caption(f'{league_name}').\
-            apply(color_extremums, subset=[f'week {i+1}' for i in range(week - total_limit, week)])
+            apply(color_extremums, subset=[f'week {w}' for w in range(1, week + 1)])
         display(df_matchups_styler)
 
         if league not in cat_subset:
             df_win = pd.DataFrame(data=list(table_win_data_dict.values()), index=table_win_data_dict.keys(),
-                                  columns=[f'week {i+1}' for i in range(week - win_limit, week)] + ['Total', 'ESPN', 'WD', 'LD', 'DD'])
+                                  columns=[f'week {i+1}' for i in range(week)] + ['Total', 'ESPN', 'WD', 'LD', 'DD'])
             df_win = df_win.sort_values(['WD', 'DD'], ascending=False)
             styles = [dict(selector='caption', props=[('text-align', 'center')])]
             df_win_styler = df_win.style.set_table_styles(styles).set_caption(f'{league_name}').\
-                applymap(color_matchup_result, subset=[f'week {i+1}' for i in range(week - win_limit, week)]).\
+                applymap(color_matchup_result, subset=[f'week {w}' for w in range(1, week + 1)]).\
                 applymap(color_value, subset=pd.IndexSlice[table_data_dict.keys(), ['WD']])
             display(df_win_styler)
 
         if league in cat_subset:
             df = pd.DataFrame(data=list(table_data_dict.values()), index=table_data_dict.keys(),
-                              columns=[f'week {i+1}' for i in range(week - cat_limit, week)] + ['Total', 'ESPN', 'WD', 'LD', 'DD'])
+                              columns=[f'week {i+1}' for i in range(week - 7, week)] + ['Total', 'ESPN', 'WD', 'LD', 'DD'])
             df = df.sort_values(['WD', 'DD'], ascending=False)
             to_add = pd.DataFrame(data=list(get_best_and_worst_rows(df)), index=['Best', 'Worst'])
             df = df.append(to_add, sort=False)
             styles = [dict(selector='caption', props=[('text-align', 'center')])]
             df_styler = df.style.set_table_styles(styles).set_caption(f'{league_name}').\
-                apply(color_extremums, subset=pd.IndexSlice[df.index, [f'week {i+1}' for i in range(week-cat_limit, week)] + ['Total', 'ESPN']]).\
+                apply(color_extremums, subset=pd.IndexSlice[df.index, [f'week {i+1}' for i in range(week-7, week)] + ['Total', 'ESPN']]).\
                 applymap(color_value, subset=pd.IndexSlice[table_data_dict.keys(), ['WD']])
             display(df_styler)
