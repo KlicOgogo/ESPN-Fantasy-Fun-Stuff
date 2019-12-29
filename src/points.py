@@ -8,7 +8,7 @@ from src import styling
 from src.utils import get_places, get_scoreboard_stats, ZERO
 
 
-def get_luck_score(matchups, places):
+def _get_luck_score(matchups, places):
     luck_score = {}
     for player1, player2 in matchups:
         if player1[1] > player2[1]:
@@ -34,7 +34,7 @@ def get_luck_score(matchups, places):
     return luck_score
 
 
-def get_sorted_week_scores(week_matchups):
+def _get_sorted_week_scores(week_matchups):
     scores = []
     for matchup in week_matchups:
         scores.extend(matchup)
@@ -58,9 +58,9 @@ def display_week_stats(leagues, sport, week, sleep_timeout=10):
                 all_scores_dict[(sc[0][0], league_name)].append(sc[0][1])
                 all_scores_dict[(sc[1][0], league_name)].append(sc[1][1])
 
-            week_scores = get_sorted_week_scores(week_results)
+            week_scores = _get_sorted_week_scores(week_results)
             week_places = get_places(week_scores)
-            week_luck_score = get_luck_score(week_results, week_places)
+            week_luck_score = _get_luck_score(week_results, week_places)
             format_lambda = lambda x: x if x % 1.0 > ZERO else int(x)
             for team in week_luck_score:
                 luck_score[team].append(format_lambda(week_luck_score[team]))
