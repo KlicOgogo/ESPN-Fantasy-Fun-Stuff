@@ -8,8 +8,8 @@ import pandas as pd
 from selenium import webdriver
 
 
-from src.styling import color_extremums, color_matchup_result, color_place_column
-from src.utils import get_league_name, get_places, get_week_scores, ZERO
+from src.styling import color_extremums, color_matchup_result, color_place_column, color_value
+from src.utils import get_places, get_scoreboard_stats, ZERO
 
 
 NUMBERED_VALUE_COLS = {'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS', 'TP'}
@@ -165,53 +165,169 @@ def get_week_matchups(scoreboard_html_source):
     return matchups, categories
 
 
-def get_week_stats(leagues, cat_subset, league_type, week, sleep_timeout=10):
-    browser = webdriver.Chrome()
-    for league in leagues:
-        link = f'https://fantasy.espn.com/{league_type}/league/scoreboard?leagueId={league}&matchupPeriodId={week}'
-        browser.get(link)
-        time.sleep(sleep_timeout)
-        scoreboard_html_source = BeautifulSoup(browser.page_source, features='html.parser')
-        league_name = get_league_name(scoreboard_html_source)
+def display_last_week_stats(is_each_category_type, league_name, scoreboard_html_source, week_scores, week):
+    week_matchups, categories = get_week_matchups(scoreboard_html_source)
+    exp_score, exp_result = get_expected_score_and_result(week_matchups, categories)
+    category_stats = get_category_stats(week_matchups)
 
-        week_matchups, categories = get_week_matchups(scoreboard_html_source)
-        exp_score, exp_result = get_expected_score_and_result(week_matchups, categories)
-        category_stats = get_category_stats(week_matchups)
-        team_power = get_team_power_dict(category_stats, categories)
+    week_scores_dict = {}
+    for s in week_scores:
+        week_scores_dict.update(s)
 
-        week_scores = get_week_scores(scoreboard_html_source, 'categories')
-        week_scores_dict = {}
-        for s in week_scores:
-            week_scores_dict.update(s)
+    full_df = pd.DataFrame(data=list(category_stats.values()), index=category_stats.keys(), columns=categories)
+    score_df = pd.DataFrame(data=list(week_scores_dict.values()), index=week_scores_dict.keys(), columns=['Score'])
+    places_data = get_places_data(full_df)
+    places_df = pd.DataFrame(data=list(places_data.values()), index=places_data.keys(),
+                             columns=[f'{col} ' for col in categories] + ['SUM'])
 
-        full_df = pd.DataFrame(data=list(category_stats.values()), index=category_stats.keys(), columns=categories)
-        score_df = pd.DataFrame(data=list(week_scores_dict.values()), index=week_scores_dict.keys(), columns=['Score'])
+    full_df = full_df.merge(score_df, how='outer', left_index=True, right_index=True)
+    if is_each_category_type:
         exp_score_df = pd.DataFrame(data=list(exp_score.values()), index=exp_score.keys(), columns=['ExpScore'])
+        full_df = full_df.merge(exp_score_df, how='outer', left_index=True, right_index=True)
+    else:
+        team_power = get_team_power_dict(category_stats, categories)
         team_power_df = pd.DataFrame(data=list(team_power.values()), index=team_power.keys(), columns=['TP'])
+        full_df = full_df.merge(team_power_df, how='outer', left_index=True, right_index=True)
         exp_res_df = pd.DataFrame(data=list(exp_result.values()), index=exp_result.keys(), columns=['ER'])
-        places_data = get_places_data(full_df)
-        places_df = pd.DataFrame(data=list(places_data.values()), index=places_data.keys(),
-                                 columns=[f'{col} ' for col in categories] + ['SUM'])
+        full_df = full_df.merge(exp_res_df, how='outer', left_index=True, right_index=True)
+    full_df = full_df.merge(places_df, how='outer', left_index=True, right_index=True)
+    full_df = full_df.sort_values(['SUM', 'PTS'])
+    best_and_worst_df = pd.DataFrame(data=list(get_best_and_worst_rows(full_df)), index=['Best', 'Worst'])
+    final_df = full_df.append(best_and_worst_df, sort=False)
 
-        full_df = full_df.merge(score_df, how='outer', left_index=True, right_index=True)
-        if league in cat_subset:
-            full_df = full_df.merge(exp_score_df, how='outer', left_index=True, right_index=True)
-        else:
-            full_df = full_df.merge(team_power_df, how='outer', left_index=True, right_index=True)
-            full_df = full_df.merge(exp_res_df, how='outer', left_index=True, right_index=True)
-        full_df = full_df.merge(places_df, how='outer', left_index=True, right_index=True)
-        full_df = full_df.sort_values(['SUM', 'PTS'])
-        best_and_worst_df = pd.DataFrame(data=list(get_best_and_worst_rows(full_df)), index=['Best', 'Worst'])
-        final_df = full_df.append(best_and_worst_df, sort=False)
+    best_and_worst_cols = categories + ['Score', 'TP']
+    if is_each_category_type:
+        best_and_worst_cols = categories + ['Score', 'ExpScore']
 
-        best_and_worst_cols = categories + ['Score', 'TP']
-        if league in cat_subset:
-            best_and_worst_cols = categories + ['Score', 'ExpScore']
+    styles = [dict(selector='caption', props=[('text-align', 'center')])]
+    final_df_styler = final_df.style.set_table_styles(styles).set_caption(f'{league_name}, week {week}').\
+        apply(color_extremums, subset=pd.IndexSlice[final_df.index, best_and_worst_cols]).\
+        apply(color_place_column, subset=pd.IndexSlice[full_df.index, [f'{c} ' for c in categories]])
+    if not is_each_category_type:
+        final_df_styler = final_df_styler.applymap(color_matchup_result, subset=pd.IndexSlice[full_df.index, ['ER']])
+    display(final_df_styler)
 
+
+
+def display_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
+    cat_limit = 7
+    win_limit = 10
+    total_limit = 10
+
+    for league in leagues:
+
+        all_scores = defaultdict(list)
+        all_matchup_results = defaultdict(list)
+        all_exp_scores = defaultdict(list)
+        all_matchup_exp_results = defaultdict(list)
+        all_matchups_won = defaultdict(list)
+        
+        all_matchups, soups, league_name = get_scoreboard_stats(league, sport, week, sleep_timeout, scoring='categories')
+
+        display_last_week_stats(league in cat_subset, league_name, soups[-1], all_matchups[-1], week)
+
+        for scores, scoreboard_html_source in zip(all_matchups, soups):
+            res, cat = get_week_matchups(scoreboard_html_source)
+
+            week_scores = get_category_stats(res)
+            for team in week_scores:
+                week_wins = Counter()
+                for opp in week_scores:
+                    if opp == team:
+                        continue
+                    fake_matchup_res = get_matchup_result(week_scores[team], week_scores[opp], cat)
+                    week_wins[fake_matchup_res] += 1
+                all_matchups_won[team].append('-'.join(map(str, [week_wins['W'], week_wins['L'], week_wins['D']])))
+                
+            scores_dict = {}
+            opp_dict = {}
+            for sc in scores:
+                scores_dict.update(sc)
+                opp_dict[sc[0][0]] = sc[1][0]
+                opp_dict[sc[1][0]] = sc[0][0]
+                
+            for team in opp_dict:
+                team_sc = np.array(scores_dict[team].split('-'))
+                opp_sc = np.array(scores_dict[opp_dict[team]].split('-'))
+                if list(team_sc[[0, 2, 1]]) > list(opp_sc[[0, 2, 1]]):
+                    all_matchup_results[team].append('W')
+                elif list(team_sc[[0, 2, 1]]) < list(opp_sc[[0, 2, 1]]):
+                    all_matchup_results[team].append('L')
+                else:
+                    all_matchup_results[team].append('D')
+            
+            for team in scores_dict:
+                all_scores[team].append(scores_dict[team])
+
+            exp_score, exp_result = get_expected_score_and_result(res, cat)
+            for team in exp_score:
+                all_exp_scores[team].append(exp_score[team])
+                all_matchup_exp_results[team].append(exp_result[team])
+
+        for team in all_scores:
+            stats = [np.array(list(map(float, score.split('-')))) for score in all_scores[team]]
+            stats_array = np.vstack(stats)
+            res = stats_array.sum(axis=0)
+            all_scores[team].append('-'.join(list(map(format_value, res))))
+            
+        for team in all_exp_scores:
+            stats = [np.array(list(map(float, score.split('-')))) for score in all_exp_scores[team]]
+            stats_array = np.vstack(stats)
+            res = list(map(lambda x: np.round(x, 1), stats_array.sum(axis=0)))
+            all_exp_scores[team].append('-'.join(map(format_value, res)))
+            
+        for team in all_matchup_results:
+            all_matchup_results[team].append(get_team_win_stat(all_matchup_results[team]))
+            all_matchup_exp_results[team].append(get_team_win_stat(all_matchup_exp_results[team]))
+        
+        for team in all_matchups_won:
+            stats = [np.array(list(map(float, score.split('-')))) for score in all_matchups_won[team]]
+            stats_array = np.vstack(stats)
+            res = list(map(lambda x: np.round(x, 1), stats_array.sum(axis=0)))
+            all_matchups_won[team].append('-'.join(map(format_value, res)))
+        
+        table_data_dict = {team : all_exp_scores[team][len(all_exp_scores[team])-1-cat_limit:] for team in all_exp_scores}
+        for team in table_data_dict:
+            table_data_dict[team].append(all_scores[team][-1])
+            table_data_dict[team].extend(get_diff(table_data_dict[team][-1], table_data_dict[team][-2]))
+            
+        table_win_data_dict = {team : all_matchup_exp_results[team][len(all_matchup_exp_results[team])-1-win_limit:] for team in all_matchup_exp_results}
+        for team in table_win_data_dict:
+            table_win_data_dict[team].append(all_matchup_results[team][-1])
+            table_win_data_dict[team].extend(get_diff(table_win_data_dict[team][-1], table_win_data_dict[team][-2]))
+        
+        matchups_data_dict = {team: all_matchups_won[team][len(all_matchups_won[team]) - 1 - total_limit:] for team in all_matchups_won}
+        for team in matchups_data_dict:
+            matchups_data_dict[team].extend(map(int, matchups_data_dict[team].pop().split('-')))
+
+        df_matchups = pd.DataFrame(data=list(matchups_data_dict.values()), index=matchups_data_dict.keys(),
+                                   columns=[f'week {i+1}' for i in range(week - total_limit, week)] + ['W', 'L', 'D'])
+        df_matchups = df_matchups.sort_values(['W', 'D'], ascending=False)
+        to_add = pd.DataFrame(data=list(get_best_and_worst_rows(df_matchups)), index=['Best', 'Worst'])
+        df_matchups = df_matchups.append(to_add, sort=False)
         styles = [dict(selector='caption', props=[('text-align', 'center')])]
-        final_df_styler = final_df.style.set_table_styles(styles).set_caption(f'{league_name}, week {week}').\
-            apply(color_extremums, subset=pd.IndexSlice[final_df.index, best_and_worst_cols]).\
-            apply(color_place_column, subset=pd.IndexSlice[full_df.index, [f'{c} ' for c in categories]])
+        df_matchups_styler = df_matchups.style.set_table_styles(styles).set_caption(f'{league_name}').\
+            apply(color_extremums, subset=[f'week {i+1}' for i in range(week - total_limit, week)])
+        display(df_matchups_styler)
+
         if league not in cat_subset:
-            final_df_styler = final_df_styler.applymap(color_matchup_result, subset=pd.IndexSlice[full_df.index, ['ER']])
-        display(final_df_styler)
+            df_win = pd.DataFrame(data=list(table_win_data_dict.values()), index=table_win_data_dict.keys(),
+                                  columns=[f'week {i+1}' for i in range(week - win_limit, week)] + ['Total', 'ESPN', 'WD', 'LD', 'DD'])
+            df_win = df_win.sort_values(['WD', 'DD'], ascending=False)
+            styles = [dict(selector='caption', props=[('text-align', 'center')])]
+            df_win_styler = df_win.style.set_table_styles(styles).set_caption(f'{league_name}').\
+                applymap(color_matchup_result, subset=[f'week {i+1}' for i in range(week - win_limit, week)]).\
+                applymap(color_value, subset=pd.IndexSlice[table_data_dict.keys(), ['WD']])
+            display(df_win_styler)
+
+        if league in cat_subset:
+            df = pd.DataFrame(data=list(table_data_dict.values()), index=table_data_dict.keys(),
+                              columns=[f'week {i+1}' for i in range(week - cat_limit, week)] + ['Total', 'ESPN', 'WD', 'LD', 'DD'])
+            df = df.sort_values(['WD', 'DD'], ascending=False)
+            to_add = pd.DataFrame(data=list(get_best_and_worst_rows(df)), index=['Best', 'Worst'])
+            df = df.append(to_add, sort=False)
+            styles = [dict(selector='caption', props=[('text-align', 'center')])]
+            df_styler = df.style.set_table_styles(styles).set_caption(f'{league_name}').\
+                apply(color_extremums, subset=pd.IndexSlice[df.index, [f'week {i+1}' for i in range(week-cat_limit, week)] + ['Total', 'ESPN']]).\
+                applymap(color_value, subset=pd.IndexSlice[table_data_dict.keys(), ['WD']])
+            display(df_styler)

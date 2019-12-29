@@ -40,7 +40,7 @@ def get_sorted_week_scores(week_matchups):
     return sorted(scores, key=_itemgetter(1), reverse=True)
 
 
-def display_week_stats(leagues, league_type, n_weeks, sleep_timeout=10):
+def display_week_stats(leagues, sport, n_weeks, sleep_timeout=10):
     all_scores_dict = defaultdict(list)
     for league in leagues:
         luck_score = defaultdict(list)
@@ -48,7 +48,7 @@ def display_week_stats(leagues, league_type, n_weeks, sleep_timeout=10):
         places = defaultdict(list)
         opp_places = defaultdict(list)
 
-        all_matchups, league_name = utils.get_scoreboard_stats(league, league_type, n_weeks, sleep_timeout)
+        all_matchups, _, league_name = utils.get_scoreboard_stats(league, sport, n_weeks, sleep_timeout)
         for week_results in all_matchups:
             opp_dict = {}
             for sc in week_results:
