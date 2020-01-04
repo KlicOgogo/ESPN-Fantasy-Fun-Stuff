@@ -144,4 +144,4 @@ def export_week_stats(leagues, sport, week, sleep_timeout=10):
     styler = data.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index()
     total_tables['Best total scores this season'] = styler.render()
 
-    export_tables_to_html(sport, leagues_tables, total_tables, f'{leagues[0]}.html')
+    export_tables_to_html(sport, leagues_tables, total_tables, leagues[0], week)

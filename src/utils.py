@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import time
 
 from bs4 import BeautifulSoup
@@ -43,7 +44,7 @@ def _get_week_scores(scoreboard_html_source, scoring='points'):
     return matchups
 
 
-def export_tables_to_html(sport, leagues_tables, total_tables, html_path):
+def export_tables_to_html(sport, leagues_tables, total_tables, league_id, week):
     with open(os.path.join(REPO_ROOT_DIR, 'templates/week_report.html'), 'r') as template_fp:
         template = Template(template_fp.read())
     html_str = template.render({
@@ -51,7 +52,12 @@ def export_tables_to_html(sport, leagues_tables, total_tables, html_path):
         'leagues': leagues_tables,
         'total_tables': total_tables
     })
-    with open(html_path, 'w') as html_fp:
+    index_html_path = os.path.join(REPO_ROOT_DIR, 'reports', sport, str(league_id), 'index.html')
+    week_html_path = os.path.join(REPO_ROOT_DIR, 'reports', sport, str(league_id), f'week_{week}.html')
+    Path(os.path.dirname(index_html_path)).mkdir(parents=True, exist_ok=True)
+    with open(index_html_path, 'w') as html_fp:
+        html_fp.write(html_str)
+    with open(week_html_path, 'w') as html_fp:
         html_fp.write(html_str)
 
 
