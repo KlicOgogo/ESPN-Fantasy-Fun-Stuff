@@ -10,11 +10,12 @@ ATTRS = 'style="border-collapse: collapse; border: 1px solid black;" align= "cen
 REPO_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 STYLES = [
     dict(selector='td', props=[('border-left', '1px solid black'), ('border-right', '1px solid black'),
-                               ('text-align', 'right'), ('padding-left', '8px')]),
+                               ('text-align', 'right'), ('padding-left', '4px')]),
     dict(selector='td:first-child', props=[('border-left', 'none')]),
     dict(selector='td:last-child', props=[('border-right', 'none')]),
     dict(selector='th', props=[('border-left', '1px solid black'), ('border-right', '1px solid black'),
-                               ('border-bottom', '1px solid black'), ('background', '#FFFFFF')]),
+                               ('border-bottom', '1px solid black'), ('background', '#FFFFFF'),
+                               ('padding-left', '6px')]),
     dict(selector='tr:nth-child(odd)', props=[('background', '#F0F0F0')]),
 ]
 ZERO = 1e-7
