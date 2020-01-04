@@ -302,4 +302,4 @@ def export_week_stats(leagues, is_each_category_type, sport, week, sleep_timeout
                 applymap(color_value, subset=pd.IndexSlice[table_data_dict.keys(), ['WD']])
             tables_dict['Expected category win stats'] = df_styler.render()
 
-    export_tables_to_html(sport, leagues_tables, {}, f'{leagues[0]}.html')
+    export_tables_to_html(sport, leagues_tables, {}, leagues[0], week)
