@@ -27,7 +27,7 @@ def _get_league_name(scoreboard_html_source):
     return scoreboard_html_source.findAll('h3')[0].text
 
 
-def _get_week_scores(scoreboard_html_source, scoring='points'):
+def _get_matchup_scores(scoreboard_html_source, scoring='points'):
     if scoring not in ['points', 'categories']:
         raise Exception('Wrong scoring parameter!')
     matchups = []
@@ -44,8 +44,8 @@ def _get_week_scores(scoreboard_html_source, scoring='points'):
     return matchups
 
 
-def export_tables_to_html(sport, leagues_tables, total_tables, league_id, week):
-    with open(os.path.join(REPO_ROOT_DIR, 'templates/week_report.html'), 'r') as template_fp:
+def export_tables_to_html(sport, leagues_tables, total_tables, league_id, matchup):
+    with open(os.path.join(REPO_ROOT_DIR, 'templates/matchup_report.html'), 'r') as template_fp:
         template = Template(template_fp.read())
     html_str = template.render({
         'sport': sport,
@@ -53,11 +53,11 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, week):
         'total_tables': total_tables
     })
     index_html_path = os.path.join(REPO_ROOT_DIR, 'reports', sport, str(league_id), 'index.html')
-    week_html_path = os.path.join(REPO_ROOT_DIR, 'reports', sport, str(league_id), f'week_{week}.html')
+    matchup_html_path = os.path.join(REPO_ROOT_DIR, 'reports', sport, str(league_id), f'matchup_{matchup}.html')
     Path(os.path.dirname(index_html_path)).mkdir(parents=True, exist_ok=True)
     with open(index_html_path, 'w') as html_fp:
         html_fp.write(html_str)
-    with open(week_html_path, 'w') as html_fp:
+    with open(matchup_html_path, 'w') as html_fp:
         html_fp.write(html_str)
 
 
@@ -75,9 +75,9 @@ def get_places(sorted_scores):
     return places
 
 
-def get_scoreboard_stats(league_id, sport, week, sleep_timeout=10, scoring='points'):
+def get_scoreboard_stats(league_id, sport, matchup, sleep_timeout=10, scoring='points'):
     espn_scoreboard_url = f'https://fantasy.espn.com/{sport}/league/scoreboard'
-    urls = [f'{espn_scoreboard_url}?leagueId={league_id}&matchupPeriodId={w}' for w in range(1, week + 1)]
+    urls = [f'{espn_scoreboard_url}?leagueId={league_id}&matchupPeriodId={m}' for m in range(1, matchup + 1)]
     all_matchups = []
     soups = []
     for u in urls:
@@ -85,7 +85,7 @@ def get_scoreboard_stats(league_id, sport, week, sleep_timeout=10, scoring='poin
         time.sleep(sleep_timeout)
         html_soup = BeautifulSoup(_BROWSER.page_source, features='html.parser')
         soups.append(html_soup)
-        all_matchups.append(_get_week_scores(html_soup, scoring))
+        all_matchups.append(_get_matchup_scores(html_soup, scoring))
     return all_matchups, soups, _get_league_name(html_soup)
 
 
