@@ -19,7 +19,7 @@ def _export_hockey_stats():
     week = 14
     sport = 'hockey'
     points.export_week_stats([27465869], sport, week, SLEEP_TIMEOUT_IN_SECONDS)
-    points.export_week_stats([8290, 31769, 33730, 52338, 57256, 73362809], sport, SLEEP_TIMEOUT_IN_SECONDS)
+    points.export_week_stats([8290, 31769, 33730, 52338, 57256, 73362809], sport, week, SLEEP_TIMEOUT_IN_SECONDS)
 
 
 def main():
