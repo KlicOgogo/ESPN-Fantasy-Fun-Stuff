@@ -1,12 +1,11 @@
 from collections import defaultdict
 from operator import itemgetter as _itemgetter
 
-from jinja2 import Template
 import pandas as pd
 import numpy as np
 
 from src import styling
-from src.utils import get_places, get_scoreboard_stats, make_data_row, ATTRS, STYLES, ZERO
+from src.utils import export_tables_to_html, get_places, get_scoreboard_stats, make_data_row, ATTRS, STYLES, ZERO
 
 
 def _get_luck_score(matchups, places):
@@ -129,11 +128,4 @@ def export_week_stats(leagues, sport, week, sleep_timeout=10):
     styler = data.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index()
     total_tables['Best total scores this season'] = styler.render()
 
-    with open('template.html', 'r') as template_fp:
-        template = Template(template_fp.read())
-        html_str = template.render({
-            'leagues': leagues_tables,
-            'total_tables': total_tables
-        })
-        with open(f'{leagues[0]}.html', 'w') as html_fp:
-            html_fp.write(html_str)
+    export_tables_to_html(sport, leagues_tables, total_tables, f'{leagues[0]}.html')

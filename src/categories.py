@@ -1,12 +1,11 @@
 from collections import defaultdict, Counter
 from operator import itemgetter as _itemgetter
 
-from jinja2 import Template
 import numpy as np
 import pandas as pd
 
 from src.styling import color_extremums, color_matchup_result, color_place_column, color_value
-from src.utils import get_places, get_scoreboard_stats, make_data_row, ATTRS, STYLES, ZERO
+from src.utils import export_tables_to_html, get_places, get_scoreboard_stats, make_data_row, ATTRS, STYLES, ZERO
 
 
 NUMBERED_VALUE_COLS = {'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS', 'TP'}
@@ -216,7 +215,7 @@ def _get_week_matchups(scoreboard_html_source):
     return matchups, categories
 
 
-def export_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
+def export_week_stats(leagues, is_each_category_type, sport, week, sleep_timeout=10):
     leagues_tables = defaultdict(dict)
     for league in leagues:
         all_scores = defaultdict(list)
@@ -227,7 +226,7 @@ def export_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
 
         all_matchups, soups, league_name = get_scoreboard_stats(league, sport, week, sleep_timeout, 'categories')
         tables_dict = leagues_tables[league_name]
-        tables_dict['Last week stats'] = _export_last_week_stats(league in cat_subset, soups[-1], all_matchups[-1])
+        tables_dict['Last week stats'] = _export_last_week_stats(is_each_category_type, soups[-1], all_matchups[-1])
 
         for scores, scoreboard_html_source in zip(all_matchups, soups):
             week_matchups, categories = _get_week_matchups(scoreboard_html_source)
@@ -270,7 +269,7 @@ def export_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
             apply(color_extremums, subset=weeks)
         tables_dict['Pairwise comparisons'] = df_matchups_styler.render()
 
-        if league not in cat_subset:
+        if not is_each_category_type:
             table_win_data_dict = all_matchup_exp_results.copy()
             for team in table_win_data_dict:
                 table_win_data_dict[team].append(all_matchup_results[team][-1])
@@ -286,7 +285,7 @@ def export_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
                 applymap(color_value, subset=pd.IndexSlice[table_win_data_dict.keys(), ['WD']])
             tables_dict['Expected matchup win stats'] = df_win_styler.render()
 
-        if league in cat_subset:
+        if is_each_category_type:
             table_data_dict = all_exp_scores.copy()
             for team in table_data_dict:
                 table_data_dict[team].append(all_scores[team][-1])
@@ -303,11 +302,4 @@ def export_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
                 applymap(color_value, subset=pd.IndexSlice[table_data_dict.keys(), ['WD']])
             tables_dict['Expected category win stats'] = df_styler.render()
 
-    with open('template.html', 'r') as template_fp:
-        template = Template(template_fp.read())
-        html_str = template.render({
-            'leagues': leagues_tables,
-            'total_tables': {}
-        })
-        with open(f'{leagues[0]}.html', 'w') as html_fp:
-            html_fp.write(html_str)
+    export_tables_to_html(sport, leagues_tables, {}, f'{leagues[0]}.html')
