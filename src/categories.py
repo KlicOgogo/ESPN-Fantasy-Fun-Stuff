@@ -47,7 +47,7 @@ def _export_last_week_stats(is_each_category_type, scoreboard_html_source, week_
         exp_res_df = pd.DataFrame(data=list(exp_result.values()), index=exp_result.keys(), columns=['ER'])
         full_df = full_df.merge(exp_res_df, how='outer', left_index=True, right_index=True)
     full_df = full_df.merge(places_df, how='outer', left_index=True, right_index=True)
-    full_df = full_df.sort_values(['SUM', 'PTS'])
+    full_df = full_df.iloc[np.lexsort((-full_df['PTS'], full_df['SUM']))]
     best_and_worst_df = pd.DataFrame(data=list(_get_best_and_worst_rows(full_df)), index=['Best', 'Worst'])
     final_df = full_df.append(best_and_worst_df, sort=False)
 
@@ -278,10 +278,10 @@ def export_week_stats(leagues, is_each_category_type, sport, week, sleep_timeout
 
             df_win = pd.DataFrame(data=list(map(make_data_row, table_win_data_dict.items())),
                                   index=table_win_data_dict.keys(), 
-                                  columns=['Team', *weeks, 'Total', 'ESPN', 'WD', 'LD', 'DD'])
+                                  columns=['Team', *[w for w in range(1, week+1)], 'Total', 'ESPN', 'WD', 'LD', 'DD'])
             df_win = df_win.sort_values(['WD', 'DD'], ascending=False)
             df_win_styler = df_win.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
-                applymap(color_matchup_result, subset=weeks).\
+                applymap(color_matchup_result, subset=[w for w in range(1, week+1)]).\
                 applymap(color_value, subset=pd.IndexSlice[table_win_data_dict.keys(), ['WD']])
             tables_dict['Expected matchup win stats'] = df_win_styler.render()
 
