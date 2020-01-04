@@ -1,9 +1,22 @@
+import os
 import time
 
 from bs4 import BeautifulSoup
+from jinja2 import Template
 from selenium.webdriver import Chrome
 
 
+ATTRS = 'style="border-collapse: collapse; border: 1px solid black;" align= "center"'
+REPO_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+STYLES = [
+    dict(selector='td', props=[('border-left', '1px solid black'), ('border-right', '1px solid black'),
+                               ('text-align', 'right'), ('padding-left', '8px')]),
+    dict(selector='td:first-child', props=[('border-left', 'none')]),
+    dict(selector='td:last-child', props=[('border-right', 'none')]),
+    dict(selector='th', props=[('border-left', '1px solid black'), ('border-right', '1px solid black'),
+                               ('border-bottom', '1px solid black'), ('background', '#FFFFFF')]),
+    dict(selector='tr:nth-child(odd)', props=[('background', '#F0F0F0')]),
+]
 ZERO = 1e-7
 
 
@@ -26,6 +39,18 @@ def _get_week_scores(scoreboard_html_source, scoring='points'):
             res.append((team, score))
         matchups.append(res)
     return matchups
+
+
+def export_tables_to_html(sport, leagues_tables, total_tables, html_path):
+    with open(os.path.join(REPO_ROOT_DIR, 'template.html'), 'r') as template_fp:
+        template = Template(template_fp.read())
+    html_str = template.render({
+        'sport': sport,
+        'leagues': leagues_tables,
+        'total_tables': total_tables
+    })
+    with open(html_path, 'w') as html_fp:
+        html_fp.write(html_str)
 
 
 def get_places(sorted_scores):
@@ -55,3 +80,7 @@ def get_scoreboard_stats(league_id, sport, week, sleep_timeout=10, scoring='poin
         soups.append(html_soup)
         all_matchups.append(_get_week_scores(html_soup, scoring))
     return all_matchups, soups, _get_league_name(html_soup)
+
+
+def make_data_row(dict_item):
+    return [dict_item[0], *dict_item[1]]
