@@ -145,4 +145,4 @@ def export_matchup_stats(leagues, sport, matchup, sleep_timeout=10):
     styler = data.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index()
     total_tables['Best total scores this season'] = styler.render()
 
-    export_tables_to_html(sport, leagues_tables, total_tables, leagues[0], matchup)
+    export_tables_to_html(sport, leagues_tables, total_tables, leagues[0], '2019-20', matchup)

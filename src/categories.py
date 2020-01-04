@@ -303,4 +303,4 @@ def export_matchup_stats(leagues, is_each_category_type, sport, matchup, sleep_t
                 applymap(color_value, subset=pd.IndexSlice[table_data_dict.keys(), ['WD']])
             tables_dict['Expected category win stats'] = df_styler.render()
 
-    export_tables_to_html(sport, leagues_tables, {}, leagues[0], matchup)
+    export_tables_to_html(sport, leagues_tables, {}, leagues[0], '2019-20', matchup)
