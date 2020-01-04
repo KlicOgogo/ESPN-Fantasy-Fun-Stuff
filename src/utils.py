@@ -6,6 +6,7 @@ from jinja2 import Template
 from selenium.webdriver import Chrome
 
 
+_BROWSER = Chrome()
 ATTRS = 'style="border-collapse: collapse; border: 1px solid black;" align= "center"'
 REPO_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 STYLES = [
@@ -43,7 +44,7 @@ def _get_week_scores(scoreboard_html_source, scoring='points'):
 
 
 def export_tables_to_html(sport, leagues_tables, total_tables, html_path):
-    with open(os.path.join(REPO_ROOT_DIR, 'template.html'), 'r') as template_fp:
+    with open(os.path.join(REPO_ROOT_DIR, 'templates/week_report.html'), 'r') as template_fp:
         template = Template(template_fp.read())
     html_str = template.render({
         'sport': sport,
@@ -71,13 +72,12 @@ def get_places(sorted_scores):
 def get_scoreboard_stats(league_id, sport, week, sleep_timeout=10, scoring='points'):
     espn_scoreboard_url = f'https://fantasy.espn.com/{sport}/league/scoreboard'
     urls = [f'{espn_scoreboard_url}?leagueId={league_id}&matchupPeriodId={w}' for w in range(1, week + 1)]
-    browser = Chrome()
     all_matchups = []
     soups = []
     for u in urls:
-        browser.get(u)
+        _BROWSER.get(u)
         time.sleep(sleep_timeout)
-        html_soup = BeautifulSoup(browser.page_source, features='html.parser')
+        html_soup = BeautifulSoup(_BROWSER.page_source, features='html.parser')
         soups.append(html_soup)
         all_matchups.append(_get_week_scores(html_soup, scoring))
     return all_matchups, soups, _get_league_name(html_soup)

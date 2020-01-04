@@ -4,8 +4,8 @@ from operator import itemgetter as _itemgetter
 import pandas as pd
 import numpy as np
 
-from src import styling
-from src.utils import export_tables_to_html, get_places, get_scoreboard_stats, make_data_row, ATTRS, STYLES, ZERO
+import styling
+from utils import export_tables_to_html, get_places, get_scoreboard_stats, make_data_row, ATTRS, STYLES, ZERO
 
 
 def _get_luck_score(matchups, places):
