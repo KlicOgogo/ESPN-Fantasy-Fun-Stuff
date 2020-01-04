@@ -3,17 +3,21 @@
 	<head>ESPN fantasy {{ sport }} week report</head>
 	<body align="center">
 {% for league_name, table_dict in leagues.items() %}
-		<h1>{{ league_name }}</h1>
+		<h2>{{ league_name }}</h2>
 	{%- for caption, table in table_dict.items() %}
-		<h2>{{ caption }}</h2>
+		<h3>{{ caption }}</h3>
+		<div style="overflow-x:auto;">
 		{{ table }}
+		</div>
 		&nbsp;
 {%- endfor %}
 	{%- endfor %}
 
 	{%- for caption, table in total_tables.items() %}
-		<h2>{{ caption }}</h2>
+		<h3>{{ caption }}</h3>
+		<div style="overflow-x:auto;">
 		{{ table }}
+		</div>
 		&nbsp;
 	{%- endfor %}
 	</body>
