@@ -12,7 +12,7 @@ ATTRS = 'style="border-collapse: collapse; border: 1px solid black;" align= "cen
 REPO_ROOT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 STYLES = [
     dict(selector='td', props=[('border-left', '1px solid black'), ('border-right', '1px solid black'),
-                               ('text-align', 'right'), ('padding-left', '4px')]),
+                               ('text-align', 'right'), ('padding-left', '4px'), ('padding-right', '4px')]),
     dict(selector='td:first-child', props=[('border-left', 'none')]),
     dict(selector='td:last-child', props=[('border-right', 'none')]),
     dict(selector='th', props=[('border-left', '1px solid black'), ('border-right', '1px solid black'),
