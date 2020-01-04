@@ -4,8 +4,8 @@ from operator import itemgetter as _itemgetter
 import numpy as np
 import pandas as pd
 
-from src.styling import color_extremums, color_matchup_result, color_place_column, color_value
-from src.utils import export_tables_to_html, get_places, get_scoreboard_stats, make_data_row, ATTRS, STYLES, ZERO
+from styling import color_extremums, color_matchup_result, color_place_column, color_value
+from utils import export_tables_to_html, get_places, get_scoreboard_stats, make_data_row, ATTRS, STYLES, ZERO
 
 
 NUMBERED_VALUE_COLS = {'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS', 'TP'}
