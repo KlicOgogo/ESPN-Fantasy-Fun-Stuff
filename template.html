@@ -2,17 +2,19 @@
 <html>
 	<head>ESPN fantasy week report</head>
 	<body align="center">
-{% for league_name in leagues %}
+{% for league_name, table_dict in leagues.items() %}
 		<h1>{{ league_name }}</h1>
-	{%- for caption_league in leagues[league_name] %}
-		<h2>{{ caption_league }}</h2>
-		{{ leagues[league_name][caption_league] }}
+	{%- for caption, table in table_dict.items() %}
+		<h2>{{ caption }}</h2>
+		{{ table }}
+		&nbsp;
 {%- endfor %}
 	{%- endfor %}
 
-	{%- for caption_total in total_tables %}
-		<h2>{{ caption_total }}</h2>
-		{{ total_tables[caption_total] }}
+	{%- for caption, table in total_tables.items() %}
+		<h2>{{ caption }}</h2>
+		{{ table }}
+		&nbsp;
 	{%- endfor %}
 	</body>
 </html>
