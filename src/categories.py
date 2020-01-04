@@ -1,11 +1,12 @@
 from collections import defaultdict, Counter
 from operator import itemgetter as _itemgetter
 
+from jinja2 import Template
 import numpy as np
 import pandas as pd
 
 from src.styling import color_extremums, color_matchup_result, color_place_column, color_value
-from src.utils import get_places, get_scoreboard_stats, ZERO
+from src.utils import get_places, get_scoreboard_stats, make_data_row, ATTRS, STYLES, ZERO
 
 
 NUMBERED_VALUE_COLS = {'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS', 'TP'}
@@ -19,7 +20,7 @@ def _add_stats_sum(stats_dict):
         stats_dict[team].append('-'.join(map(_format_value, stats_sum)))
 
 
-def _display_last_week_stats(is_each_category_type, scoreboard_html_source, week_scores, caption):
+def _export_last_week_stats(is_each_category_type, scoreboard_html_source, week_scores):
     week_matchups, categories = _get_week_matchups(scoreboard_html_source)
     exp_score, exp_result = _get_expected_score_and_result(week_matchups, categories)
     category_stats = _get_category_stats(week_matchups)
@@ -28,7 +29,8 @@ def _display_last_week_stats(is_each_category_type, scoreboard_html_source, week
     for s in week_scores:
         week_scores_dict.update(s)
 
-    full_df = pd.DataFrame(data=list(category_stats.values()), index=category_stats.keys(), columns=categories)
+    full_df = pd.DataFrame(data=list(map(make_data_row, category_stats.items())),
+                           index=category_stats.keys(), columns=['Team'] + categories)
     score_df = pd.DataFrame(data=list(week_scores_dict.values()), index=week_scores_dict.keys(), columns=['Score'])
     places_df = pd.DataFrame(data=list(places_data.values()), index=places_data.keys(),
                              columns=[f'{col} ' for col in categories] + ['SUM'])
@@ -54,13 +56,12 @@ def _display_last_week_stats(is_each_category_type, scoreboard_html_source, week
     if is_each_category_type:
         best_and_worst_cols = categories + ['Score', 'ExpScore']
 
-    styles = [dict(selector='caption', props=[('text-align', 'center')])]
-    final_df_styler = final_df.style.set_table_styles(styles).set_caption(caption).\
+    final_df_styler = final_df.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
         apply(color_extremums, subset=pd.IndexSlice[final_df.index, best_and_worst_cols]).\
         apply(color_place_column, subset=pd.IndexSlice[full_df.index, [f'{c} ' for c in categories]])
     if not is_each_category_type:
         final_df_styler = final_df_styler.applymap(color_matchup_result, subset=pd.IndexSlice[full_df.index, ['ER']])
-    display(final_df_styler)
+    return final_df_styler.render()
 
 
 def _format_value(x):
@@ -91,6 +92,8 @@ def _get_best_and_worst_rows(table):
     for col in table.columns:
         if col in empty_value_cols:
             best[col], worst[col] = ('', '')
+        elif col == 'Team':
+            best[col], worst[col] = ('Best', 'Worst')
         else:
             best[col], worst[col] = _get_best_and_worst_values(table, col)
     return best, worst
@@ -213,7 +216,8 @@ def _get_week_matchups(scoreboard_html_source):
     return matchups, categories
 
 
-def display_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
+def export_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
+    leagues_tables = defaultdict(dict)
     for league in leagues:
         all_scores = defaultdict(list)
         all_exp_scores = defaultdict(list)
@@ -222,7 +226,8 @@ def display_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
         matchups_data_dict = defaultdict(list)
 
         all_matchups, soups, league_name = get_scoreboard_stats(league, sport, week, sleep_timeout, 'categories')
-        _display_last_week_stats(league in cat_subset, soups[-1], all_matchups[-1], f'{league_name}, week {week}')
+        tables_dict = leagues_tables[league_name]
+        tables_dict['Last week stats'] = _export_last_week_stats(league in cat_subset, soups[-1], all_matchups[-1])
 
         for scores, scoreboard_html_source in zip(all_matchups, soups):
             week_matchups, categories = _get_week_matchups(scoreboard_html_source)
@@ -256,15 +261,14 @@ def display_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
             matchups_data_dict[team].extend(map(int, matchups_data_dict[team].pop().split('-')))
 
         weeks = [f'week {w}' for w in range(1, week + 1)]
-        df_matchups = pd.DataFrame(data=list(matchups_data_dict.values()), index=matchups_data_dict.keys(),
-                                   columns=weeks + ['W', 'L', 'D'])
+        df_matchups = pd.DataFrame(data=list(map(make_data_row, matchups_data_dict.items())),
+                                   index=matchups_data_dict.keys(), columns=['Team', *weeks, 'W', 'L', 'D'])
         df_matchups = df_matchups.sort_values(['W', 'D'], ascending=False)
         best_and_worst_df = pd.DataFrame(data=list(_get_best_and_worst_rows(df_matchups)), index=['Best', 'Worst'])
         df_matchups = df_matchups.append(best_and_worst_df, sort=False)
-        styles = [dict(selector='caption', props=[('text-align', 'center')])]
-        df_matchups_styler = df_matchups.style.set_table_styles(styles).set_caption(f'{league_name}').\
+        df_matchups_styler = df_matchups.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
             apply(color_extremums, subset=weeks)
-        display(df_matchups_styler)
+        tables_dict['Pairwise comparisons'] = df_matchups_styler.render()
 
         if league not in cat_subset:
             table_win_data_dict = all_matchup_exp_results.copy()
@@ -273,26 +277,37 @@ def display_week_stats(leagues, cat_subset, sport, week, sleep_timeout=10):
                 win_diff = _get_diff(table_win_data_dict[team][-1], table_win_data_dict[team][-2])
                 table_win_data_dict[team].extend(win_diff)
 
-            df_win = pd.DataFrame(data=list(table_win_data_dict.values()), index=table_win_data_dict.keys(),
-                                  columns=weeks + ['Total', 'ESPN', 'WD', 'LD', 'DD'])
+            df_win = pd.DataFrame(data=list(map(make_data_row, table_win_data_dict.items())),
+                                  index=table_win_data_dict.keys(), 
+                                  columns=['Team', *weeks, 'Total', 'ESPN', 'WD', 'LD', 'DD'])
             df_win = df_win.sort_values(['WD', 'DD'], ascending=False)
-            df_win_styler = df_win.style.set_table_styles(styles).set_caption(league_name).\
+            df_win_styler = df_win.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
                 applymap(color_matchup_result, subset=weeks).\
                 applymap(color_value, subset=pd.IndexSlice[table_win_data_dict.keys(), ['WD']])
-            display(df_win_styler)
+            tables_dict['Expected matchup win stats'] = df_win_styler.render()
 
         if league in cat_subset:
-            table_data_dict = {team: all_exp_scores[team][len(all_exp_scores[team])-8:] for team in all_exp_scores}
+            table_data_dict = all_exp_scores.copy()
             for team in table_data_dict:
                 table_data_dict[team].append(all_scores[team][-1])
                 table_data_dict[team].extend(_get_diff(table_data_dict[team][-1], table_data_dict[team][-2]))
 
-            df_exp = pd.DataFrame(data=list(table_data_dict.values()), index=table_data_dict.keys(),
-                                  columns=weeks[week - 7:] + ['Total', 'ESPN', 'WD', 'LD', 'DD'])
+            df_exp = pd.DataFrame(data=list(map(make_data_row, table_data_dict.items())),
+                                  index=table_data_dict.keys(),
+                                  columns=['Team', *weeks, 'Total', 'ESPN', 'WD', 'LD', 'DD'])
             df_exp = df_exp.sort_values(['WD', 'DD'], ascending=False)
             best_and_worst_df = pd.DataFrame(data=list(_get_best_and_worst_rows(df_exp)), index=['Best', 'Worst'])
             df_exp = df_exp.append(best_and_worst_df, sort=False)
-            df_styler = df_exp.style.set_table_styles(styles).set_caption(league_name).\
-                apply(color_extremums, subset=pd.IndexSlice[df_exp.index, weeks[week-7:] + ['Total', 'ESPN']]).\
+            df_styler = df_exp.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
+                apply(color_extremums, subset=pd.IndexSlice[df_exp.index, weeks + ['Total', 'ESPN']]).\
                 applymap(color_value, subset=pd.IndexSlice[table_data_dict.keys(), ['WD']])
-            display(df_styler)
+            tables_dict['Expected category win stats'] = df_styler.render()
+
+    with open('template.html', 'r') as template_fp:
+        template = Template(template_fp.read())
+        html_str = template.render({
+            'leagues': leagues_tables,
+            'total_tables': {}
+        })
+        with open(f'{leagues[0]}.html', 'w') as html_fp:
+            html_fp.write(html_str)

@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 
 from src import styling
-from src.utils import get_places, get_scoreboard_stats, ZERO, STYLES, ATTRS
+from src.utils import get_places, get_scoreboard_stats, make_data_row, ATTRS, STYLES, ZERO
 
 
 def _get_luck_score(matchups, places):
@@ -40,10 +40,6 @@ def _get_sorted_week_scores(week_matchups):
     for matchup in week_matchups:
         scores.extend(matchup)
     return sorted(scores, key=_itemgetter(1), reverse=True)
-
-
-def _make_data_row(dict_item):
-    return [dict_item[0], *dict_item[1]]
 
 
 def export_week_stats(leagues, sport, week, sleep_timeout=10):
@@ -84,25 +80,25 @@ def export_week_stats(leagues, sport, week, sleep_timeout=10):
         cols = ['Team', *weeks, 'SUM']
         total_tables = {}
 
-        df_luck_score = pd.DataFrame(data=list(map(_make_data_row, luck_score.items())), columns=cols)
+        df_luck_score = pd.DataFrame(data=list(map(make_data_row, luck_score.items())), columns=cols)
         df_luck_score = df_luck_score.sort_values(['SUM'])
         styler = df_luck_score.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
             applymap(styling.color_value, subset=weeks)
         leagues_tables[league_name]['Luck scores'] = styler.render()
 
-        df_places = pd.DataFrame(data=list(map(_make_data_row, places.items())), columns=cols)
+        df_places = pd.DataFrame(data=list(map(make_data_row, places.items())), columns=cols)
         df_places = df_places.sort_values(['SUM'])
         styler = df_places.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
             apply(styling.color_place_column, subset=weeks)
         leagues_tables[league_name]['Places'] = styler.render()
 
-        df_opp_luck_score = pd.DataFrame(data=list(map(_make_data_row, opp_luck_score.items())), columns=cols)
+        df_opp_luck_score = pd.DataFrame(data=list(map(make_data_row, opp_luck_score.items())), columns=cols)
         df_opp_luck_score = df_opp_luck_score.sort_values(['SUM'])
         styler = df_opp_luck_score.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
             applymap(styling.color_opponent_value, subset=weeks)
         leagues_tables[league_name]['Opponent luck scores'] = styler.render()
 
-        df_opp_places = pd.DataFrame(data=list(map(_make_data_row, opp_places.items())), columns=cols)
+        df_opp_places = pd.DataFrame(data=list(map(make_data_row, opp_places.items())), columns=cols)
         df_opp_places = df_opp_places.sort_values(['SUM'])
         styler = df_opp_places.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
             apply(styling.color_opponent_place_column, subset=weeks)

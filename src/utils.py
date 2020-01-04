@@ -65,3 +65,7 @@ def get_scoreboard_stats(league_id, sport, week, sleep_timeout=10, scoring='poin
         soups.append(html_soup)
         all_matchups.append(_get_week_scores(html_soup, scoring))
     return all_matchups, soups, _get_league_name(html_soup)
+
+
+def make_data_row(dict_item):
+    return [dict_item[0], *dict_item[1]]
