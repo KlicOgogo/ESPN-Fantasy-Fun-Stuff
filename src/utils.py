@@ -4,6 +4,16 @@ from bs4 import BeautifulSoup
 from selenium.webdriver import Chrome
 
 
+ATTRS = 'style="border-collapse: collapse; border: 1px solid black;" align= "center"'
+STYLES = [
+    dict(selector='td', props=[('border-left', '1px solid black'), ('border-right', '1px solid black'),
+                               ('text-align', 'right'), ('padding-left', '8px')]),
+    dict(selector='td:first-child', props=[('border-left', 'none')]),
+    dict(selector='td:last-child', props=[('border-right', 'none')]),
+    dict(selector='th', props=[('border-left', '1px solid black'), ('border-right', '1px solid black'),
+                               ('border-bottom', '1px solid black'), ('background', '#FFFFFF')]),
+    dict(selector='tr:nth-child(odd)', props=[('background', '#F0F0F0')]),
+]
 ZERO = 1e-7
 
 
