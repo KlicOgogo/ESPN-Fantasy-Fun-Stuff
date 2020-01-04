@@ -43,7 +43,7 @@ def _get_week_scores(scoreboard_html_source, scoring='points'):
 
 
 def export_tables_to_html(sport, leagues_tables, total_tables, html_path):
-    with open(os.path.join(REPO_ROOT_DIR, 'template.html'), 'r') as template_fp:
+    with open(os.path.join(REPO_ROOT_DIR, 'templates/week_report.html'), 'r') as template_fp:
         template = Template(template_fp.read())
     html_str = template.render({
         'sport': sport,
