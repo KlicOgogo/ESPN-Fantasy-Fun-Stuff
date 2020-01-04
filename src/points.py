@@ -76,7 +76,7 @@ def export_week_stats(leagues, sport, week, sleep_timeout=10):
                 np.sum(luck_score[team])
             ])
             places[team].extend([
-                np.sum(np.array(places[team]) / len(luck_score) >= styling.TOP_PERCENTAGE),
+                np.sum(np.array(places[team]) / len(luck_score) > styling.TOP_PERCENTAGE),
                 np.sum(np.array(places[team]) / len(luck_score) <= styling.TOP_PERCENTAGE),
                 np.sum(places[team])
             ])
@@ -87,7 +87,7 @@ def export_week_stats(leagues, sport, week, sleep_timeout=10):
             ])
             opp_places[team].extend([
                 np.sum(np.array(opp_places[team]) / len(luck_score) <= styling.TOP_PERCENTAGE),
-                np.sum(np.array(opp_places[team]) / len(luck_score) >=styling.TOP_PERCENTAGE),
+                np.sum(np.array(opp_places[team]) / len(luck_score) > styling.TOP_PERCENTAGE),
                 np.sum(opp_places[team])
             ])
 
