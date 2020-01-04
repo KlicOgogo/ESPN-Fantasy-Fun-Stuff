@@ -76,8 +76,8 @@ def export_matchup_stats(leagues, sport, matchup, sleep_timeout=10):
                 np.sum(luck_score[team])
             ])
             places[team].extend([
-                np.sum(np.array(places[team]) / len(luck_score) > 1.0 - styling.TOP_PERCENTAGE),
-                np.sum(np.array(places[team]) / len(luck_score) <= styling.TOP_PERCENTAGE),
+                np.sum(np.array(places[team]) / len(luck_score) > 1.0 - styling.TOP_PERC),
+                np.sum(np.array(places[team]) / len(luck_score) <= styling.TOP_PERC),
                 np.sum(places[team])
             ])
             opp_luck_score[team].extend([
@@ -86,8 +86,8 @@ def export_matchup_stats(leagues, sport, matchup, sleep_timeout=10):
                 np.sum(opp_luck_score[team])
             ])
             opp_places[team].extend([
-                np.sum(np.array(opp_places[team]) / len(luck_score) <= styling.TOP_PERCENTAGE),
-                np.sum(np.array(opp_places[team]) / len(luck_score) > 1.0 - styling.TOP_PERCENTAGE),
+                np.sum(np.array(opp_places[team]) / len(luck_score) <= styling.TOP_PERC),
+                np.sum(np.array(opp_places[team]) / len(luck_score) > 1.0 - styling.TOP_PERC),
                 np.sum(opp_places[team])
             ])
 

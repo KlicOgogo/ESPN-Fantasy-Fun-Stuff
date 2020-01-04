@@ -1,4 +1,4 @@
-TOP_PERCENTAGE = 0.4
+TOP_PERC = 0.4
 
 
 def color_extremums(s):
@@ -7,7 +7,7 @@ def color_extremums(s):
 
 
 def color_opponent_place_column(s):
-    return ['color: red' if val / s.max() <= TOP_PERCENTAGE else 'color: blue' for val in s]
+    return ['color: red' if v / len(s) <= TOP_PERC else 'color: blue' if v / len(s) > 1 - TOP_PERC else '' for v in s]
 
 
 def color_opponent_value(v):
@@ -20,7 +20,7 @@ def color_pair_result(v):
 
 
 def color_place_column(s):
-    return ['color: blue' if val / s.max() <= TOP_PERCENTAGE else 'color: red' for val in s]
+    return ['color: blue' if v / len(s) <= TOP_PERC else 'color: red' if v / len(s) > 1 - TOP_PERC else '' for v in s]
 
 
 def color_value(v):
