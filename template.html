@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+	<head>ESPN fantasy week report</head>
+	<body align="center">
+{% for league_name in leagues %}
+		<h1>{{ league_name }}</h1>
+	{%- for caption_league in leagues[league_name] %}
+		<h2>{{ caption_league }}</h2>
+		{{ leagues[league_name][caption_league] }}
+{%- endfor %}
+	{%- endfor %}
+
+	{%- for caption_total in total_tables %}
+		<h2>{{ caption_total }}</h2>
+		{{ total_tables[caption_total] }}
+	{%- endfor %}
+	</body>
+</html>
