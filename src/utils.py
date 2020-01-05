@@ -74,7 +74,7 @@ def get_minutes(league, matchup, n_teams, sleep_timeout=10):
         tables_html = html_soup.findAll('div', {'class': 'players-table__sortable'})
         teams_html = html_soup.findAll('span', {'class': "team-name truncate"})
         for team_html, table_html in zip(teams_html, tables_html):
-            team = team_html.text.replace('Box Score', '').strip()
+            team = team_html.text.replace(' Box Score', '')
             minutes = int(table_html.findAll('tr')[-1].findAll('td')[0].text)
             minutes_dict[team] = minutes
     return minutes_dict

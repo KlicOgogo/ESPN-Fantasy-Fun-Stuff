@@ -264,7 +264,7 @@ def export_matchup_stats(leagues, is_each_category_type, sport, matchup, sleep_t
         for team in comparisons_data_dict:
             comparisons_data_dict[team].extend(map(int, comparisons_data_dict[team].pop().split('-')))
 
-        matchups = [f'matchup {m}' for m in range(1, matchup + 1)]
+        matchups = [m for m in range(1, matchup + 1)]
         df_pairs = pd.DataFrame(data=list(map(make_data_row, comparisons_data_dict.items())),
                                 index=comparisons_data_dict.keys(), columns=['Team', *matchups, 'W', 'L', 'D'])
         df_pairs = df_pairs.sort_values(['W', 'D'], ascending=False)
@@ -281,12 +281,12 @@ def export_matchup_stats(leagues, is_each_category_type, sport, matchup, sleep_t
                 win_diff = _get_diff(table_win_data_dict[team][-1], table_win_data_dict[team][-2])
                 table_win_data_dict[team].extend(win_diff)
 
-            df_win_columns = ['Team', *[m for m in range(1, matchup+1)], 'Total', 'ESPN', 'WD', 'LD', 'DD']
+            df_win_columns = ['Team', *matchups, 'Total', 'ESPN', 'WD', 'LD', 'DD']
             df_win = pd.DataFrame(data=list(map(make_data_row, table_win_data_dict.items())),
                                   index=table_win_data_dict.keys(), columns=df_win_columns)
             df_win = df_win.sort_values(['WD', 'DD'], ascending=False)
             df_win_styler = df_win.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
-                applymap(color_pair_result, subset=[m for m in range(1, matchup+1)]).\
+                applymap(color_pair_result, subset=matchups).\
                 applymap(color_value, subset=pd.IndexSlice[table_win_data_dict.keys(), ['WD']])
             tables_dict['Expected matchup win stats'] = df_win_styler.render()
 
