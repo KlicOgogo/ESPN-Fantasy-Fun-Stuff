@@ -23,15 +23,15 @@ STYLES = [
 ZERO = 1e-7
 
 
-def _get_league_name(scoreboard_html_source):
-    return scoreboard_html_source.findAll('h3')[0].text
+def _get_league_name(scoreboard_html):
+    return scoreboard_html.findAll('h3')[0].text
 
 
-def _get_matchup_scores(scoreboard_html_source, scoring='points'):
+def _get_matchup_scores(scoreboard_html, scoring='points'):
     if scoring not in ['points', 'categories']:
         raise Exception('Wrong scoring parameter!')
     matchups = []
-    matchups_html = scoreboard_html_source.findAll('div', {'Scoreboard__Row'})
+    matchups_html = scoreboard_html.findAll('div', {'Scoreboard__Row'})
     for m in matchups_html:
         opponents = m.findAll('li', 'ScoreboardScoreCell__Item')
         res = []
@@ -59,6 +59,25 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season
         html_fp.write(html_str)
     with open(matchup_html_path, 'w') as html_fp:
         html_fp.write(html_str)
+
+
+def get_minutes(league, matchup, n_teams, sleep_timeout=10):
+    espn_fantasy_url = 'https://fantasy.espn.com/basketball'
+    urls = [(f'{espn_fantasy_url}/boxscore?leagueId={league}&matchupPeriodId={matchup}'
+             f'&scoringPeriodId={1 + (matchup - 1) * 7}' # fix with cronable publisher
+             f'&seasonId=2020&teamId={t}&view=matchup') for t in range(1, n_teams+1)] # fix season
+    minutes_dict = {}
+    for u in urls:
+        _BROWSER.get(u)
+        time.sleep(sleep_timeout)
+        html_soup = BeautifulSoup(_BROWSER.page_source, features='html.parser')
+        tables_html = html_soup.findAll('div', {'class': 'players-table__sortable'})
+        teams_html = html_soup.findAll('span', {'class': "team-name truncate"})
+        for team_html, table_html in zip(teams_html, tables_html):
+            team = team_html.text.replace(' Box Score', '')
+            minutes = int(table_html.findAll('tr')[-1].findAll('td')[0].text)
+            minutes_dict[team] = minutes
+    return minutes_dict
 
 
 def get_places(sorted_scores):
