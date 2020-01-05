@@ -6,9 +6,10 @@ import pandas as pd
 
 from styling import color_extremums, color_pair_result, color_place_column, color_value
 from utils import export_tables_to_html, get_places, get_scoreboard_stats, make_data_row, ATTRS, STYLES, ZERO
+from utils import get_minutes
 
 
-NUMBERED_VALUE_COLS = {'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS', 'TP'}
+NUMBERED_VALUE_COLS = {'MIN', 'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS', 'TP'}
 
 
 def _add_stats_sum(stats_dict):
@@ -19,8 +20,8 @@ def _add_stats_sum(stats_dict):
         stats_dict[team].append('-'.join(map(_format_value, stats_sum)))
 
 
-def _export_last_matchup_stats(is_each_category_type, scoreboard_html_source, matchup_scores):
-    matchup_pairs, categories = _get_matchup_pairs(scoreboard_html_source)
+def _export_last_matchup_stats(is_each_category_type, scoreboard_html, matchup_scores, minutes_dict):
+    matchup_pairs, categories = _get_matchup_pairs(scoreboard_html)
     exp_score, exp_result = _get_expected_score_and_result(matchup_pairs, categories)
     category_stats = _get_category_stats(matchup_pairs)
     places_data = _get_places_data(category_stats, categories)
@@ -28,12 +29,13 @@ def _export_last_matchup_stats(is_each_category_type, scoreboard_html_source, ma
     for s in matchup_scores:
         matchup_scores_dict.update(s)
 
-    full_df = pd.DataFrame(data=list(map(make_data_row, category_stats.items())),
-                           index=category_stats.keys(), columns=['Team'] + categories)
+    full_df = pd.DataFrame(data=list(minutes_dict.items()), index=minutes_dict.keys(), columns=['Team', 'MIN'])
+    stats_df = pd.DataFrame(data=list(category_stats.values()), index=category_stats.keys(), columns=categories)
     score_df = pd.DataFrame(data=list(matchup_scores_dict.values()), 
                             index=matchup_scores_dict.keys(), columns=['Score'])
     places_df = pd.DataFrame(data=list(places_data.values()), index=places_data.keys(),
                              columns=[f'{col} ' for col in categories] + ['SUM'])
+    full_df = full_df.merge(stats_df, how='outer', left_index=True, right_index=True)
     full_df = full_df.merge(score_df, how='outer', left_index=True, right_index=True)
     if is_each_category_type:
         exp_score_df = pd.DataFrame(data=list(exp_score.values()), index=exp_score.keys(), columns=['ExpScore'])
@@ -52,9 +54,9 @@ def _export_last_matchup_stats(is_each_category_type, scoreboard_html_source, ma
     best_and_worst_df = pd.DataFrame(data=list(_get_best_and_worst_rows(full_df)), index=['Best', 'Worst'])
     final_df = full_df.append(best_and_worst_df, sort=False)
 
-    best_and_worst_cols = categories + ['Score', 'TP']
+    best_and_worst_cols = categories + ['Score', 'TP', 'MIN']
     if is_each_category_type:
-        best_and_worst_cols = categories + ['Score', 'ExpScore']
+        best_and_worst_cols = categories + ['Score', 'ExpScore', 'MIN']
 
     final_df_styler = final_df.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
         apply(color_extremums, subset=pd.IndexSlice[final_df.index, best_and_worst_cols]).\
@@ -166,6 +168,25 @@ def _get_expected_score_and_result(results, categories):
     return exp_scores, pair_results
 
 
+def _get_matchup_pairs(scoreboard_html):
+    pairs_html = scoreboard_html.findAll('div', {'Scoreboard__Row'})
+    pairs = []
+    for m in pairs_html:
+        opponents = m.findAll('li', 'ScoreboardScoreCell__Item')
+        team_names = [o.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text for o in opponents]
+
+        rows = m.findAll('tr', {'Table2__tr'})
+        categories = [header.text for header in rows[0].findAll('th', {'Table2__th'})[1:]]
+        first_team_stats = [data.text for data in rows[1].findAll('td', {'Table2__td'})[1:]]
+        second_team_stats = [data.text for data in rows[2].findAll('td', {'Table2__td'})[1:]]
+
+        pairs.append(
+            ((team_names[0], [(cat, float(stat)) for cat, stat in zip(categories, first_team_stats)]),
+             (team_names[1], [(cat, float(stat)) for cat, stat in zip(categories, second_team_stats)]))
+        )
+    return pairs, categories
+
+
 def _get_pair_result(team_stat, opp_stat, categories):
     win_count = 0
     lose_count = 0
@@ -197,25 +218,6 @@ def _get_team_win_stat(team_stat):
     return '-'.join(map(_format_value, [team_stat.count('W'), team_stat.count('L'), team_stat.count('D')]))
 
 
-def _get_matchup_pairs(scoreboard_html_source):
-    pairs_html = scoreboard_html_source.findAll('div', {'Scoreboard__Row'})
-    pairs = []
-    for m in pairs_html:
-        opponents = m.findAll('li', 'ScoreboardScoreCell__Item')
-        team_names = [o.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text for o in opponents]
-
-        rows = m.findAll('tr', {'Table2__tr'})
-        categories = [header.text for header in rows[0].findAll('th', {'Table2__th'})[1:]]
-        first_team_stats = [data.text for data in rows[1].findAll('td', {'Table2__td'})[1:]]
-        second_team_stats = [data.text for data in rows[2].findAll('td', {'Table2__td'})[1:]]
-
-        pairs.append(
-            ((team_names[0], [(cat, float(stat)) for cat, stat in zip(categories, first_team_stats)]),
-             (team_names[1], [(cat, float(stat)) for cat, stat in zip(categories, second_team_stats)]))
-        )
-    return pairs, categories
-
-
 def export_matchup_stats(leagues, is_each_category_type, sport, matchup, sleep_timeout=10):
     leagues_tables = defaultdict(dict)
     for league in leagues:
@@ -227,10 +229,12 @@ def export_matchup_stats(leagues, is_each_category_type, sport, matchup, sleep_t
 
         all_pairs, soups, league_name = get_scoreboard_stats(league, sport, matchup, sleep_timeout, 'categories')
         tables_dict = leagues_tables[league_name]
-        tables_dict['Past matchup stats'] = _export_last_matchup_stats(is_each_category_type, soups[-1], all_pairs[-1])
+        minutes_dict = get_minutes(league, matchup, len(all_pairs) * 2, sleep_timeout)
+        last_matchup_stats = _export_last_matchup_stats(is_each_category_type, soups[-1], all_pairs[-1], minutes_dict)
+        tables_dict['Past matchup stats'] = last_matchup_stats
 
-        for scores, scoreboard_html_source in zip(all_pairs, soups):
-            matchup_pairs, categories = _get_matchup_pairs(scoreboard_html_source)
+        for scores, scoreboard_html in zip(all_pairs, soups):
+            matchup_pairs, categories = _get_matchup_pairs(scoreboard_html)
             exp_score, exp_result = _get_expected_score_and_result(matchup_pairs, categories)
             category_stats = _get_category_stats(matchup_pairs)
             comparison_stat = _get_comparison_stats(category_stats, categories)
@@ -262,7 +266,7 @@ def export_matchup_stats(leagues, is_each_category_type, sport, matchup, sleep_t
 
         matchups = [f'matchup {m}' for m in range(1, matchup + 1)]
         df_pairs = pd.DataFrame(data=list(map(make_data_row, comparisons_data_dict.items())),
-                                   index=comparisons_data_dict.keys(), columns=['Team', *matchups, 'W', 'L', 'D'])
+                                index=comparisons_data_dict.keys(), columns=['Team', *matchups, 'W', 'L', 'D'])
         df_pairs = df_pairs.sort_values(['W', 'D'], ascending=False)
         best_and_worst_df = pd.DataFrame(data=list(_get_best_and_worst_rows(df_pairs)), index=['Best', 'Worst'])
         df_pairs = df_pairs.append(best_and_worst_df, sort=False)
