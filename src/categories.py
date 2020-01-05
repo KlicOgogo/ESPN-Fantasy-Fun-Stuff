@@ -222,7 +222,7 @@ def _get_team_win_stat(team_stat):
     return '-'.join(map(_format_value, [team_stat.count('W'), team_stat.count('L'), team_stat.count('D')]))
 
 
-def export_matchup_stats(leagues, is_each_category_type, sport, matchup, with_minutes, sleep_timeout=10):
+def export_matchup_stats(leagues, is_each_category_type, sport, test_mode_on=False, sleep_timeout=10):
     leagues_tables = defaultdict(dict)
     for league in leagues:
         all_scores = defaultdict(list)
@@ -230,16 +230,27 @@ def export_matchup_stats(leagues, is_each_category_type, sport, matchup, with_mi
         all_pair_results = defaultdict(list)
         all_pair_exp_results = defaultdict(list)
         comparisons_data_dict = defaultdict(list)
+        minutes = None
+
+        today = datetime.datetime.today().date()
+        this_season_begin_year = today.year if today.month > 6 else today.year - 1
+        matchup = 1
+        if not test_mode_on:
+            matchup = -1
+            league_schedule = utils.get_league_season_schedule(league, sport, this_season_begin_year, sleep_timeout)
+            yesterday = today - datetime.timedelta(days=1)
+            for matchup_number, matchup_date in league_schedule.items():
+                if yesterday >= matchup_date[0] and yesterday <= matchup_date[1]:
+                    matchup = matchup_number
+                    scoring_period_id = (schedule[matchup][0] - schedule[1][0]).days + 1
+                    minutes = utils.get_minutes(league, matchup, len(all_pairs) * 2,
+                                                scoring_period_id, current_season_start_year + 1, sleep_timeout)
+                    break
+        if matchup == -1:
+            return
 
         all_pairs, soups, league_name = utils.get_scoreboard_stats(league, sport, matchup, sleep_timeout, 'categories')
         tables_dict = leagues_tables[league_name]
-        minutes = None
-        if with_minutes:
-            current_season_start_year = 2019
-            schedule = utils.get_league_season_schedule(soups[-1], current_season_start_year)
-            scoring_period_id = (schedule[matchup][0] - schedule[1][0]).days + 1
-            minutes = utils.get_minutes(league, matchup, len(all_pairs) * 2,
-                                        scoring_period_id, current_season_start_year + 1, sleep_timeout)
         last_matchup_stats = _export_last_matchup_stats(is_each_category_type, soups[-1], all_pairs[-1], minutes)
         tables_dict['Past matchup stats'] = last_matchup_stats
 
@@ -319,4 +330,5 @@ def export_matchup_stats(leagues, is_each_category_type, sport, matchup, with_mi
                 applymap(styling.color_value, subset=pd.IndexSlice[table_data_dict.keys(), ['WD']])
             tables_dict['Expected category win stats'] = df_styler.render()
 
-    utils.export_tables_to_html(sport, leagues_tables, {}, leagues[0], '2019-20', matchup)
+    season_str = f'{this_season_begin_year}-{str(this_season_begin_year + 1)[-2:]}'
+    utils.export_tables_to_html(sport, leagues_tables, {}, leagues[0], season_str, matchup)

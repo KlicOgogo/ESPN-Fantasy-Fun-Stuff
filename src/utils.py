@@ -99,7 +99,13 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season
         html_fp.write(html_str)
 
 
-def get_league_season_schedule(scoreboard_html, season_start_year):
+def get_league_season_schedule(league_id, sport, season_start_year, sleep_timeout=10):
+    espn_scoreboard_url = f'https://fantasy.espn.com/{sport}/league/scoreboard'
+    url = f'{espn_scoreboard_url}?leagueId={league_id}&matchupPeriodId=1'
+    _BROWSER.get(url)
+    time.sleep(sleep_timeout)
+    scoreboard_html = BeautifulSoup(_BROWSER.page_source, features='html.parser')
+
     matchups_dropdown = scoreboard_html.findAll('div', {'class': 'dropdown'})[0]
     matchups_html_list = matchups_dropdown.findAll('option')
     schedule = {}
