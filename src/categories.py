@@ -28,13 +28,17 @@ def _export_last_matchup_stats(is_each_category_type, scoreboard_html, matchup_s
     for s in matchup_scores:
         matchup_scores_dict.update(s)
 
-    full_df = pd.DataFrame(data=list(minutes.items()), index=minutes.keys(), columns=['Team', 'MIN'])
-    stats_df = pd.DataFrame(data=list(category_stats.values()), index=category_stats.keys(), columns=categories)
+    if minutes is None:
+        full_df = pd.DataFrame(data=list(map(utils.make_data_row, category_stats.items())),
+                               index=category_stats.keys(), columns=['Team'] + categories)
+    else:
+        minutes_df = pd.DataFrame(data=list(minutes.items()), index=minutes.keys(), columns=['Team', 'MIN'])
+        stats_df = pd.DataFrame(data=list(category_stats.values()), index=category_stats.keys(), columns=categories)
+        full_df = minutes_df.merge(stats_df, how='outer', left_index=True, right_index=True)
     score_df = pd.DataFrame(data=list(matchup_scores_dict.values()), 
                             index=matchup_scores_dict.keys(), columns=['Score'])
     places_df = pd.DataFrame(data=list(places_data.values()), index=places_data.keys(),
                              columns=[f'{col} ' for col in categories] + ['SUM'])
-    full_df = full_df.merge(stats_df, how='outer', left_index=True, right_index=True)
     full_df = full_df.merge(score_df, how='outer', left_index=True, right_index=True)
     if is_each_category_type:
         exp_score_df = pd.DataFrame(data=list(exp_score.values()), index=exp_score.keys(), columns=['ExpScore'])
@@ -218,7 +222,7 @@ def _get_team_win_stat(team_stat):
     return '-'.join(map(_format_value, [team_stat.count('W'), team_stat.count('L'), team_stat.count('D')]))
 
 
-def export_matchup_stats(leagues, is_each_category_type, sport, matchup, sleep_timeout=10):
+def export_matchup_stats(leagues, is_each_category_type, sport, matchup, with_minutes, sleep_timeout=10):
     leagues_tables = defaultdict(dict)
     for league in leagues:
         all_scores = defaultdict(list)
@@ -229,11 +233,13 @@ def export_matchup_stats(leagues, is_each_category_type, sport, matchup, sleep_t
 
         all_pairs, soups, league_name = utils.get_scoreboard_stats(league, sport, matchup, sleep_timeout, 'categories')
         tables_dict = leagues_tables[league_name]
-        current_season_start_year = 2019
-        schedule = utils.get_league_season_schedule(soups[-1], current_season_start_year)
-        scoring_period_id = (schedule[matchup][0] - schedule[1][0]).days + 1
-        minutes = utils.get_minutes(league, matchup, len(all_pairs) * 2,
-                                    scoring_period_id, current_season_start_year + 1, sleep_timeout)
+        minutes = None
+        if with_minutes:
+            current_season_start_year = 2019
+            schedule = utils.get_league_season_schedule(soups[-1], current_season_start_year)
+            scoring_period_id = (schedule[matchup][0] - schedule[1][0]).days + 1
+            minutes = utils.get_minutes(league, matchup, len(all_pairs) * 2,
+                                        scoring_period_id, current_season_start_year + 1, sleep_timeout)
         last_matchup_stats = _export_last_matchup_stats(is_each_category_type, soups[-1], all_pairs[-1], minutes)
         tables_dict['Past matchup stats'] = last_matchup_stats
 
