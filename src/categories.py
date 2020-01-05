@@ -1,3 +1,4 @@
+import datetime
 from collections import defaultdict, Counter
 from operator import itemgetter as _itemgetter
 
@@ -237,14 +238,14 @@ def export_matchup_stats(leagues, is_each_category_type, sport, test_mode_on=Fal
         matchup = 1
         if not test_mode_on:
             matchup = -1
-            league_schedule = utils.get_league_season_schedule(league, sport, this_season_begin_year, sleep_timeout)
+            schedule, n_teams = utils.get_league_main_info(league, sport, this_season_begin_year, sleep_timeout)
             yesterday = today - datetime.timedelta(days=1)
-            for matchup_number, matchup_date in league_schedule.items():
+            for matchup_number, matchup_date in schedule.items():
                 if yesterday >= matchup_date[0] and yesterday <= matchup_date[1]:
                     matchup = matchup_number
                     scoring_period_id = (schedule[matchup][0] - schedule[1][0]).days + 1
-                    minutes = utils.get_minutes(league, matchup, len(all_pairs) * 2,
-                                                scoring_period_id, current_season_start_year + 1, sleep_timeout)
+                    minutes = utils.get_minutes(league, matchup, n_teams,
+                                                scoring_period_id, this_season_begin_year + 1, sleep_timeout)
                     break
         if matchup == -1:
             return

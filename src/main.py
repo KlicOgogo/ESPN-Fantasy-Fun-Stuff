@@ -25,10 +25,10 @@ def _export_hockey_stats(test_mode_on=False):
 
 def main():
     if len(sys.argv) == 2 and sys.argv[1] == 'test':
-        # _export_basketball_stats(True)
+        _export_basketball_stats(True)
         _export_hockey_stats(True)
     else:
-        # _export_basketball_stats()
+        _export_basketball_stats()
         _export_hockey_stats()
 
 
