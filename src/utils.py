@@ -1,5 +1,7 @@
+import datetime
 import os
 from pathlib import Path
+import re
 import time
 
 from bs4 import BeautifulSoup
@@ -25,6 +27,42 @@ ZERO = 1e-7
 
 def _get_league_name(scoreboard_html):
     return scoreboard_html.findAll('h3')[0].text
+
+
+def _get_matchup_date(matchup_text, season_start_year):
+    months = {
+        'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+        'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
+    }
+    start_end_str = re.findall(r'\((.+)\)', matchup_text)[0]
+    start_str, end_str = map(lambda x: x.strip().lstrip(), start_end_str.split('-'))
+    start_components = start_str.split(' ')
+    start_month = months[start_components[0].lower()]
+    start_day = int(start_components[1])
+    end_components = end_str.split(' ')
+    if len(end_components) == 1:
+        end_month = start_month
+        end_day = int(end_components[0])
+    else:
+        end_month = months[end_components[0].lower()]
+        end_day = int(end_components[1])
+    start_year = season_start_year if start_month > 6 else season_start_year + 1
+    end_year = season_start_year if end_month > 6 else season_start_year + 1
+    get_day_str = lambda year, month, day: datetime.datetime(year=year, month=month, day=day).date()
+    return (
+        get_day_str(start_year, start_month, start_day),
+        get_day_str(end_year, end_month, end_day)
+    )
+
+
+def _get_matchup_number(matchup_text):
+    return int(re.findall(r'Matchup (\d+)', matchup_text)[0])
+
+
+def _get_matchup_schedule(matchup_text, season_start_year):
+    matchup_number = _get_matchup_number(matchup_text)
+    matchup_date = _get_matchup_date(matchup_text, season_start_year)
+    return [(matchup_number, matchup_date)]
 
 
 def _get_matchup_scores(scoreboard_html, scoring='points'):
@@ -61,11 +99,20 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season
         html_fp.write(html_str)
 
 
-def get_minutes(league, matchup, n_teams, sleep_timeout=10):
+def get_league_season_schedule(scoreboard_html, season_start_year):
+    matchups_dropdown = scoreboard_html.findAll('div', {'class': 'dropdown'})[0]
+    matchups_html_list = matchups_dropdown.findAll('option')
+    schedule = {}
+    for matchup_html in matchups_html_list:
+        schedule.update(_get_matchup_schedule(matchup_html.text, season_start_year))
+    return schedule
+
+
+def get_minutes(league, matchup, n_teams, scoring_period_id, season_id, sleep_timeout=10):
     espn_fantasy_url = 'https://fantasy.espn.com/basketball'
     urls = [(f'{espn_fantasy_url}/boxscore?leagueId={league}&matchupPeriodId={matchup}'
-             f'&scoringPeriodId={1 + (matchup - 1) * 7}' # fix with cronable publisher
-             f'&seasonId=2020&teamId={t}&view=matchup') for t in range(1, n_teams+1)] # fix season
+             f'&scoringPeriodId={scoring_period_id}'
+             f'&seasonId={season_id}&teamId={t}&view=matchup') for t in range(1, n_teams+1)]
     minutes_dict = {}
     for u in urls:
         _BROWSER.get(u)

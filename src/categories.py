@@ -6,7 +6,7 @@ import pandas as pd
 
 from styling import color_extremums, color_pair_result, color_place_column, color_value
 from utils import export_tables_to_html, get_places, get_scoreboard_stats, make_data_row, ATTRS, STYLES, ZERO
-from utils import get_minutes
+from utils import get_league_season_schedule, get_minutes
 
 
 NUMBERED_VALUE_COLS = {'MIN', 'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS', 'TP'}
@@ -20,7 +20,7 @@ def _add_stats_sum(stats_dict):
         stats_dict[team].append('-'.join(map(_format_value, stats_sum)))
 
 
-def _export_last_matchup_stats(is_each_category_type, scoreboard_html, matchup_scores, minutes_dict):
+def _export_last_matchup_stats(is_each_category_type, scoreboard_html, matchup_scores, minutes):
     matchup_pairs, categories = _get_matchup_pairs(scoreboard_html)
     exp_score, exp_result = _get_expected_score_and_result(matchup_pairs, categories)
     category_stats = _get_category_stats(matchup_pairs)
@@ -29,7 +29,7 @@ def _export_last_matchup_stats(is_each_category_type, scoreboard_html, matchup_s
     for s in matchup_scores:
         matchup_scores_dict.update(s)
 
-    full_df = pd.DataFrame(data=list(minutes_dict.items()), index=minutes_dict.keys(), columns=['Team', 'MIN'])
+    full_df = pd.DataFrame(data=list(minutes.items()), index=minutes.keys(), columns=['Team', 'MIN'])
     stats_df = pd.DataFrame(data=list(category_stats.values()), index=category_stats.keys(), columns=categories)
     score_df = pd.DataFrame(data=list(matchup_scores_dict.values()), 
                             index=matchup_scores_dict.keys(), columns=['Score'])
@@ -229,8 +229,12 @@ def export_matchup_stats(leagues, is_each_category_type, sport, matchup, sleep_t
 
         all_pairs, soups, league_name = get_scoreboard_stats(league, sport, matchup, sleep_timeout, 'categories')
         tables_dict = leagues_tables[league_name]
-        minutes_dict = get_minutes(league, matchup, len(all_pairs) * 2, sleep_timeout)
-        last_matchup_stats = _export_last_matchup_stats(is_each_category_type, soups[-1], all_pairs[-1], minutes_dict)
+        current_season_start_year = 2019
+        schedule = get_league_season_schedule(soups[-1], current_season_start_year)
+        scoring_period_id = (schedule[matchup][0] - schedule[1][0]).days + 1
+        minutes = get_minutes(league, matchup, len(all_pairs) * 2,
+                              scoring_period_id, current_season_start_year + 1, sleep_timeout)
+        last_matchup_stats = _export_last_matchup_stats(is_each_category_type, soups[-1], all_pairs[-1], minutes)
         tables_dict['Past matchup stats'] = last_matchup_stats
 
         for scores, scoreboard_html in zip(all_pairs, soups):
