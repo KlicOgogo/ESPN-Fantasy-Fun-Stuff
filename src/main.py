@@ -27,6 +27,14 @@ def main():
     if len(sys.argv) == 2 and sys.argv[1] == 'test':
         _export_basketball_stats(True)
         _export_hockey_stats(True)
+    elif len(sys.argv) == 2 and sys.argv[1] == 'testhockey':
+        _export_hockey_stats(True)
+    elif len(sys.argv) == 2 and sys.argv[1] == 'testbasketball':
+        _export_basketball_stats(True)
+    elif len(sys.argv) == 2 and sys.argv[1] == 'hockey':
+        _export_hockey_stats()
+    elif len(sys.argv) == 2 and sys.argv[1] == 'basketball':
+        _export_basketball_stats()
     else:
         _export_basketball_stats()
         _export_hockey_stats()
