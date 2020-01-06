@@ -82,7 +82,7 @@ def _get_matchup_scores(scoreboard_html, scoring='points'):
     return matchups
 
 
-def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season, matchup):
+def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season, matchup, test_mode_on=False):
     with open(os.path.join(REPO_ROOT_DIR, 'templates/matchup_report.html'), 'r') as template_fp:
         template = Template(template_fp.read())
     html_str = template.render({
@@ -90,13 +90,14 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season
         'leagues': leagues_tables,
         'total_tables': total_tables
     })
-    index_html_path = os.path.join(REPO_ROOT_DIR, 'reports', sport, str(league_id), season, 'index.html')
-    matchup_html_path = os.path.join(REPO_ROOT_DIR, 'reports', sport, str(league_id), season, f'matchup_{matchup}.html')
-    Path(os.path.dirname(index_html_path)).mkdir(parents=True, exist_ok=True)
-    with open(index_html_path, 'w') as html_fp:
+    index_path = os.path.join(REPO_ROOT_DIR, 'reports', sport, str(league_id), season, 'index.html')
+    Path(os.path.dirname(index_path)).mkdir(parents=True, exist_ok=True)
+    with open(index_path, 'w') as html_fp:
         html_fp.write(html_str)
-    with open(matchup_html_path, 'w') as html_fp:
-        html_fp.write(html_str)
+    if not test_mode_on:
+        matchup_path = os.path.join(REPO_ROOT_DIR, 'reports', sport, str(league_id), season, f'matchup_{matchup}.html')
+        with open(matchup_path, 'w') as html_fp:
+            html_fp.write(html_str)
 
 
 def get_league_main_info(league_id, sport, season_start_year, sleep_timeout=10):

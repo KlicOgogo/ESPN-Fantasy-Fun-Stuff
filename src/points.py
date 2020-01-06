@@ -55,10 +55,10 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
         matchup = 1
         if not test_mode_on:
             matchup = -1
-            schedul, _ = utils.get_league_main_info(league, sport, this_season_begin_year, sleep_timeout)
+            schedule, _ = utils.get_league_main_info(league, sport, this_season_begin_year, sleep_timeout)
             yesterday = today - datetime.timedelta(days=1)
             for matchup_number, matchup_date in schedule.items():
-                if yesterday >= matchup_date[0] and yesterday <= matchup_date[1]:
+                if yesterday >= matchup_date[0] and yesterday == matchup_date[1]:
                     matchup = matchup_number
                     break
         if matchup == -1:
@@ -161,4 +161,4 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
     total_tables['Best total scores this season'] = styler.render()
 
     season_str = f'{this_season_begin_year}-{str(this_season_begin_year + 1)[-2:]}'
-    utils.export_tables_to_html(sport, leagues_tables, total_tables, leagues[0], season_str, matchup)
+    utils.export_tables_to_html(sport, leagues_tables, total_tables, leagues[0], season_str, matchup, test_mode_on)

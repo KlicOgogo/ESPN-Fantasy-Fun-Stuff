@@ -241,7 +241,7 @@ def export_matchup_stats(leagues, is_each_category_type, sport, test_mode_on=Fal
             schedule, n_teams = utils.get_league_main_info(league, sport, this_season_begin_year, sleep_timeout)
             yesterday = today - datetime.timedelta(days=1)
             for matchup_number, matchup_date in schedule.items():
-                if yesterday >= matchup_date[0] and yesterday <= matchup_date[1]:
+                if yesterday >= matchup_date[0] and yesterday == matchup_date[1]:
                     matchup = matchup_number
                     scoring_period_id = (schedule[matchup][0] - schedule[1][0]).days + 1
                     minutes = utils.get_minutes(league, matchup, n_teams,
@@ -332,4 +332,4 @@ def export_matchup_stats(leagues, is_each_category_type, sport, test_mode_on=Fal
             tables_dict['Expected category win stats'] = df_styler.render()
 
     season_str = f'{this_season_begin_year}-{str(this_season_begin_year + 1)[-2:]}'
-    utils.export_tables_to_html(sport, leagues_tables, {}, leagues[0], season_str, matchup)
+    utils.export_tables_to_html(sport, leagues_tables, {}, leagues[0], season_str, matchup, test_mode_on)
