@@ -68,13 +68,20 @@ def _get_matchup_schedule(matchup_text, season_start_year):
 def _get_matchup_scores(scoreboard_html, scoring='points'):
     if scoring not in ['points', 'categories']:
         raise Exception('Wrong scoring parameter!')
+    league_name = _get_league_name(scoreboard_html)
     matchups = []
     matchups_html = scoreboard_html.findAll('div', {'Scoreboard__Row'})
     for m in matchups_html:
         opponents = m.findAll('li', 'ScoreboardScoreCell__Item')
         res = []
         for o in opponents:
-            team = o.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text
+            if scoring == 'points':
+                team_clubhouse = o.findAll('a', {'class': 'truncate'})[0]['href']
+                team_id = re.findall(r'teamId=(\d+)', team_clubhouse)[0]
+                team_name = o.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text
+                team = (team_name, team_id, league_name)
+            else:
+                team = o.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text
             score_str = o.findAll('div', {'class': 'ScoreCell__Score'})[0].text
             score = float(score_str) if scoring == 'points' else score_str
             res.append((team, score))
