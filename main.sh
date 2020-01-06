@@ -9,5 +9,5 @@ git checkout master
 git pull origin master
 ./src/main.py
 git add *.html
-git commit -m "New week stats"
+git commit -m "New matchup stats"
 git push origin master
