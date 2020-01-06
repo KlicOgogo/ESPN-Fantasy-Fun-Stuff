@@ -1,3 +1,4 @@
+import datetime
 from collections import defaultdict
 from operator import itemgetter as _itemgetter
 
@@ -40,7 +41,7 @@ def _get_sorted_matchup_scores(matchup_pairs):
     return sorted(scores, key=_itemgetter(1), reverse=True)
 
 
-def export_matchup_stats(leagues, sport, matchup, sleep_timeout=10):
+def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
     all_scores_dict = defaultdict(list)
     leagues_tables = defaultdict(dict)
     for league in leagues:
@@ -48,6 +49,20 @@ def export_matchup_stats(leagues, sport, matchup, sleep_timeout=10):
         opp_luck_score = defaultdict(list)
         places = defaultdict(list)
         opp_places = defaultdict(list)
+
+        today = datetime.datetime.today().date()
+        this_season_begin_year = today.year if today.month > 6 else today.year - 1
+        matchup = 1
+        if not test_mode_on:
+            matchup = -1
+            schedul, _ = utils.get_league_main_info(league, sport, this_season_begin_year, sleep_timeout)
+            yesterday = today - datetime.timedelta(days=1)
+            for matchup_number, matchup_date in schedule.items():
+                if yesterday >= matchup_date[0] and yesterday <= matchup_date[1]:
+                    matchup = matchup_number
+                    break
+        if matchup == -1:
+            return
 
         all_pairs, _, league_name = utils.get_scoreboard_stats(league, sport, matchup, sleep_timeout)
         for matchup_results in all_pairs:
@@ -145,4 +160,5 @@ def export_matchup_stats(leagues, sport, matchup, sleep_timeout=10):
     styler = data.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index()
     total_tables['Best total scores this season'] = styler.render()
 
-    utils.export_tables_to_html(sport, leagues_tables, total_tables, leagues[0], '2019-20', matchup)
+    season_str = f'{this_season_begin_year}-{str(this_season_begin_year + 1)[-2:]}'
+    utils.export_tables_to_html(sport, leagues_tables, total_tables, leagues[0], season_str, matchup)
