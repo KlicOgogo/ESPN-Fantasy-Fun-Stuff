@@ -75,13 +75,9 @@ def _get_matchup_scores(scoreboard_html, scoring='points'):
         opponents = m.findAll('li', 'ScoreboardScoreCell__Item')
         res = []
         for o in opponents:
-            if scoring == 'points':
-                team_clubhouse = o.findAll('a', {'class': 'truncate'})[0]['href']
-                team_id = re.findall(r'teamId=(\d+)', team_clubhouse)[0]
-                team_name = o.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text
-                team = (team_name, team_id, league_name)
-            else:
-                team = o.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text
+            team_id = re.findall(r'teamId=(\d+)', o.findAll('a', {'class': 'truncate'})[0]['href'])[0]
+            team_name = o.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text
+            team = (team_name, team_id, league_name)
             score_str = o.findAll('div', {'class': 'ScoreCell__Score'})[0].text
             score = float(score_str) if scoring == 'points' else score_str
             res.append((team, score))
@@ -123,22 +119,20 @@ def get_league_main_info(league_id, sport, season_start_year, sleep_timeout=10):
     return schedule, n_teams
 
 
-def get_minutes(league, matchup, n_teams, scoring_period_id, season_id, sleep_timeout=10):
+def get_minutes(league, matchup, teams, scoring_period_id, season_id, sleep_timeout=10):
     espn_fantasy_url = 'https://fantasy.espn.com/basketball'
-    urls = [(f'{espn_fantasy_url}/boxscore?leagueId={league}&matchupPeriodId={matchup}'
-             f'&scoringPeriodId={scoring_period_id}'
-             f'&seasonId={season_id}&teamId={t}&view=matchup') for t in range(1, n_teams+1)]
     minutes_dict = {}
-    for u in urls:
-        _BROWSER.get(u)
+    for pair in teams:
+        url = (f'{espn_fantasy_url}/boxscore?leagueId={league}&matchupPeriodId={matchup}'
+               f'&scoringPeriodId={scoring_period_id}'
+               f'&seasonId={season_id}&teamId={pair[0][1]}&view=matchup')
+        _BROWSER.get(url)
         time.sleep(sleep_timeout)
         html_soup = BeautifulSoup(_BROWSER.page_source, features='html.parser')
         tables_html = html_soup.findAll('div', {'class': 'players-table__sortable'})
-        teams_html = html_soup.findAll('span', {'class': "team-name truncate"})
-        for team_html, table_html in zip(teams_html, tables_html):
-            team = team_html.text.replace(' Box Score', '')
+        for index, table_html in enumerate(tables_html):
             minutes = int(table_html.findAll('tr')[-1].findAll('td')[0].text)
-            minutes_dict[team] = minutes
+            minutes_dict[pair[index]] = minutes
     return minutes_dict
 
 
@@ -168,7 +162,3 @@ def get_scoreboard_stats(league_id, sport, matchup, sleep_timeout=10, scoring='p
         soups.append(html_soup)
         all_matchups.append(_get_matchup_scores(html_soup, scoring))
     return all_matchups, soups, _get_league_name(html_soup)
-
-
-def make_data_row(dict_item):
-    return [dict_item[0], *dict_item[1]]
