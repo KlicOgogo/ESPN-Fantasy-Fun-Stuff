@@ -42,7 +42,7 @@ def _get_sorted_matchup_scores(matchup_pairs):
 
 
 def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
-    all_scores_dict = defaultdict(list)
+    overall_scores = defaultdict(list)
     leagues_tables = defaultdict(dict)
     for league in leagues:
         luck = defaultdict(list)
@@ -70,8 +70,8 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
             for sc in matchup_results:
                 opp_dict[sc[0][0]] = sc[1][0]
                 opp_dict[sc[1][0]] = sc[0][0]
-                all_scores_dict[sc[0][0]].append(sc[0][1])
-                all_scores_dict[sc[1][0]].append(sc[1][1])
+                overall_scores[sc[0][0]].append(sc[0][1])
+                overall_scores[sc[1][0]].append(sc[1][1])
 
             matchup_scores = _get_sorted_matchup_scores(matchup_results)
             matchup_places = utils.get_places(matchup_scores)
@@ -107,14 +107,14 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
 
         matchups = [w for w in range(1, matchup + 1)]
         cols = [*matchups, '&#128532;', '&#128526;', 'SUM']
-        df_teams = pd.DataFrame(data=list(map(lambda x: x[0], luck.keys())),
-                                index=luck.keys(), columns=['Team'])
-        total_tables = {}
+        df_teams = pd.DataFrame(data=list(map(lambda x: x[0], luck.keys())), index=luck.keys(), columns=['Team'])
+        overall_tables = {}
 
         df_luck = pd.DataFrame(data=list(luck.values()), index=luck.keys(), columns=cols)
         df_luck = df_teams.merge(df_luck, how='outer', left_index=True, right_index=True)
         sort_indexes = np.lexsort((df_luck['&#128526;'], -df_luck['&#128532;'], df_luck['SUM']))
         df_luck = df_luck.iloc[sort_indexes]
+        df_luck = utils.add_position_column(df_luck)
         styler = df_luck.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
             applymap(styling.color_value, subset=matchups)
         leagues_tables[league_name]['Luck scores'] = styler.render()
@@ -123,6 +123,7 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
         df_places = df_teams.merge(df_places, how='outer', left_index=True, right_index=True)
         sort_indexes = np.lexsort((df_places['&#128532;'], -df_places['&#128526;'], df_places['SUM']))
         df_places = df_places.iloc[sort_indexes]
+        df_places = utils.add_position_column(df_places)
         styler = df_places.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
             apply(styling.color_place_column, subset=matchups)
         leagues_tables[league_name]['Places'] = styler.render()
@@ -131,6 +132,7 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
         df_opp_luck = df_teams.merge(df_opp_luck, how='outer', left_index=True, right_index=True)
         sort_indexes = np.lexsort((df_opp_luck['&#128532;'], -df_opp_luck['&#128526;'], df_opp_luck['SUM']))
         df_opp_luck = df_opp_luck.iloc[sort_indexes]
+        df_opp_luck = utils.add_position_column(df_opp_luck)
         styler = df_opp_luck.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
             applymap(styling.color_opponent_value, subset=matchups)
         leagues_tables[league_name]['Opponent luck scores'] = styler.render()
@@ -139,34 +141,61 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
         df_opp_places = df_teams.merge(df_opp_places, how='outer', left_index=True, right_index=True)
         sort_indexes = np.lexsort((df_opp_places['&#128526;'], -df_opp_places['&#128532;'], df_opp_places['SUM']))
         df_opp_places = df_opp_places.iloc[sort_indexes]
+        df_opp_places = utils.add_position_column(df_opp_places)
         styler = df_opp_places.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
             apply(styling.color_opponent_place_column, subset=matchups)
         leagues_tables[league_name]['Opponent places'] = styler.render()
 
-    n_top = int(len(all_scores_dict) / len(leagues))
-    last_matchup_scores = [(team[0], all_scores_dict[team][-1], team[2]) for team in all_scores_dict]
+    n_top = int(len(overall_scores) / len(leagues))
+    last_matchup_scores = [(team[0], overall_scores[team][-1], team[2]) for team in overall_scores]
     df_data = sorted(last_matchup_scores, key=_itemgetter(1), reverse=True)[:n_top]
     data = pd.DataFrame(data=[[i+1, *data_row] for i, data_row in enumerate(df_data)],
-                        index=np.arange(1, 1 + n_top), columns=['Place', 'Team', 'Score', 'League'])
+                        index=np.arange(1, 1 + n_top), columns=['Pos', 'Team', 'Score', 'League'])
     styler = data.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index()
-    total_tables['Best scores this matchup'] = styler.render()
+    overall_tables['Best scores this matchup'] = styler.render()
 
     all_scores = []
-    for team in all_scores_dict:
-        team_scores = [(team[0], score, team[2], index + 1) for index, score in enumerate(all_scores_dict[team])]
+    for team in overall_scores:
+        team_scores = [(team[0], score, team[2], index + 1) for index, score in enumerate(overall_scores[team])]
         all_scores.extend(team_scores)
     df_data = sorted(all_scores, key=_itemgetter(1), reverse=True)[:n_top]
     data = pd.DataFrame(data=[[i+1, *data_row] for i, data_row in enumerate(df_data)],
-                        index=np.arange(1, 1 + n_top), columns=['Place', 'Team', 'Score', 'League', 'Matchup'])
+                        index=np.arange(1, 1 + n_top), columns=['Pos', 'Team', 'Score', 'League', 'Matchup'])
     styler = data.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index()
-    total_tables['Best scores this season'] = styler.render()
+    overall_tables['Best scores this season'] = styler.render()
 
-    total_sums = [(team[0], np.sum(scores), team[2], scores[-1]) for team, scores in all_scores_dict.items()]
+    total_sums = [(team[0], np.sum(scores), team[2], scores[-1]) for team, scores in overall_scores.items()]
     df_data = sorted(total_sums, key=_itemgetter(1), reverse=True)[:n_top]
     data = pd.DataFrame(data=[[i+1, *data_row] for i, data_row in enumerate(df_data)],
-                        index=np.arange(1, 1 + n_top), columns=['Place', 'Team', 'Score', 'League', 'Last matchup'])
+                        index=np.arange(1, 1 + n_top), columns=['Pos', 'Team', 'Score', 'League', 'Last matchup'])
     styler = data.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index()
-    total_tables['Best total scores this season'] = styler.render()
+    overall_tables['Best total scores this season'] = styler.render()
+
+    if len(leagues) > 1:
+        overall_places = defaultdict(list)
+        for i in range(matchup):
+            matchup_overall_scores = [(team, overall_scores[team][i]) for team in overall_scores]
+            matchup_overall_scores = sorted(matchup_overall_scores, key=_itemgetter(1), reverse=True)
+            matchup_overall_places = utils.get_places(matchup_overall_scores)
+            for team in matchup_overall_places:
+                overall_places[team].append(matchup_overall_places[team])
+        for team in overall_places:
+            overall_places[team].extend([
+                np.sum(np.array(overall_places[team]) / len(overall_places) > 1.0 - styling.TOP_PERC),
+                np.sum(np.array(overall_places[team]) / len(overall_places) <= styling.TOP_PERC),
+                np.sum(overall_places[team])
+            ])
+        df_all_teams = pd.DataFrame(data=list(map(lambda x: (x[2], x[0]), overall_places.keys())),
+                                    index=overall_places.keys(), columns=['League', 'Team'])
+        df_overall_places = pd.DataFrame(data=list(overall_places.values()), index=overall_places.keys(), columns=cols)
+        df_overall_places = df_all_teams.merge(df_overall_places, how='outer', left_index=True, right_index=True)
+        sort_indexes = np.lexsort((df_overall_places['&#128532;'], -df_overall_places['&#128526;'],
+                                   df_overall_places['SUM']))
+        df_overall_places = df_overall_places.iloc[sort_indexes]
+        df_overall_places = utils.add_position_column(df_overall_places)
+        styler = df_overall_places.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
+            apply(styling.color_place_column, subset=matchups)
+        overall_tables['Overall places'] = styler.render()
 
     season_str = f'{this_season_begin_year}-{str(this_season_begin_year + 1)[-2:]}'
-    utils.export_tables_to_html(sport, leagues_tables, total_tables, leagues[0], season_str, matchup, test_mode_on)
+    utils.export_tables_to_html(sport, leagues_tables, overall_tables, leagues[0], season_str, matchup, test_mode_on)

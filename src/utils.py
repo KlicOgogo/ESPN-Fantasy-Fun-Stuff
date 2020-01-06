@@ -6,6 +6,7 @@ import time
 
 from bs4 import BeautifulSoup
 from jinja2 import Template
+import pandas as pd
 from selenium.webdriver import Chrome
 
 
@@ -83,6 +84,13 @@ def _get_matchup_scores(scoreboard_html, league_id, scoring='points'):
             res.append((team, score))
         matchups.append(res)
     return matchups
+
+
+def add_position_column(df):
+    position = {index: i + 1 for i, index in enumerate(df.index)}
+    df_position = pd.DataFrame(data=list(position.values()), index=position.keys(), columns=['Pos'])
+    result_df = df_position.merge(df, how='outer', left_index=True, right_index=True)
+    return result_df
 
 
 def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season, matchup, test_mode_on=False):
