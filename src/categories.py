@@ -332,4 +332,4 @@ def export_matchup_stats(leagues, is_each_category_type, sport, test_mode_on=Fal
             tables_dict['Expected category win stats'] = df_styler.render()
 
     season_str = f'{this_season_begin_year}-{str(this_season_begin_year + 1)[-2:]}'
-    utils.export_tables_to_html(sport, leagues_tables, {}, leagues[0], season_str, matchup)
+    utils.export_tables_to_html(sport, leagues_tables, {}, leagues[0], season_str, matchup, test_mode_on)

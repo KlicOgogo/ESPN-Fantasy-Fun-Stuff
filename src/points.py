@@ -161,4 +161,4 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
     total_tables['Best total scores this season'] = styler.render()
 
     season_str = f'{this_season_begin_year}-{str(this_season_begin_year + 1)[-2:]}'
-    utils.export_tables_to_html(sport, leagues_tables, total_tables, leagues[0], season_str, matchup)
+    utils.export_tables_to_html(sport, leagues_tables, total_tables, leagues[0], season_str, matchup, test_mode_on)
