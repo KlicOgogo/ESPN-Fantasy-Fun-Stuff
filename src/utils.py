@@ -111,7 +111,7 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season
             html_fp.write(html_str)
 
 
-def get_league_main_info(league_id, sport, season_start_year, sleep_timeout=10):
+def get_league_schedule(league_id, sport, season_start_year, sleep_timeout=10):
     espn_scoreboard_url = f'https://fantasy.espn.com/{sport}/league/scoreboard'
     url = f'{espn_scoreboard_url}?leagueId={league_id}&matchupPeriodId=1'
     _BROWSER.get(url)
@@ -123,8 +123,7 @@ def get_league_main_info(league_id, sport, season_start_year, sleep_timeout=10):
     schedule = {}
     for matchup_html in matchups_html_list:
         schedule.update(_get_matchup_schedule(matchup_html.text, season_start_year))
-    n_teams = len(scoreboard_html.findAll('div', {'Scoreboard__Row'})) * 2
-    return schedule, n_teams
+    return schedule
 
 
 def get_minutes(league, matchup, teams, scoring_period_id, season_id, sleep_timeout=10):

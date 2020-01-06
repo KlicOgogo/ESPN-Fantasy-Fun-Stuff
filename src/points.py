@@ -55,7 +55,7 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
         matchup = 1
         if not test_mode_on:
             matchup = -1
-            schedule, _ = utils.get_league_main_info(league, sport, this_season_begin_year, sleep_timeout)
+            schedule, = utils.get_league_schedule(league, sport, this_season_begin_year, sleep_timeout)
             yesterday = today - datetime.timedelta(days=1)
             for matchup_number, matchup_date in schedule.items():
                 if yesterday >= matchup_date[0] and yesterday == matchup_date[1]:
