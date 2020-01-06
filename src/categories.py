@@ -21,7 +21,7 @@ def _add_stats_sum(stats_dict):
         stats_dict[team].append('-'.join(map(_format_value, stats_sum)))
 
 
-def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_scores, minutes, categories):
+def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_scores, minutes, categories, is_overall):
     exp_score, exp_result = _get_expected_score_and_result(matchup_pairs, categories)
     category_stats = _get_category_stats(matchup_pairs)
     places_data = _get_places_data(category_stats, categories)
@@ -29,8 +29,8 @@ def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_sco
     for s in matchup_scores:
         matchup_scores_dict.update(s)
 
-    teams_df = pd.DataFrame(data=list(map(lambda x: x[0], category_stats.keys())),
-                            index=category_stats.keys(), columns=['Team'])
+    teams_df = pd.DataFrame(data=list(map(lambda x: (x[2], x[0]) if is_overall else x[0], category_stats.keys())),
+                            index=category_stats.keys(), columns=['League', 'Team'] if is_overall else ['Team'])
     stats_df = pd.DataFrame(data=list(category_stats.values()), index=category_stats.keys(), columns=categories)
     if minutes is None:
         full_df = teams_df.merge(stats_df, how='outer', left_index=True, right_index=True)
@@ -96,7 +96,7 @@ def _get_best_and_worst_values(table, col):
 
 
 def _get_best_and_worst_rows(table):
-    no_value_cols = {'Pos', 'ER', 'SUM', 'W', 'L', 'D', 'WD', 'LD', 'DD'} | {f'{col} ' for col in NUMBERED_VALUE_COLS}
+    no_value_cols = {'Pos', 'League', 'ER', 'SUM', 'W', 'L', 'D', 'WD', 'LD', 'DD'} | {f'{col} ' for col in NUMBERED_VALUE_COLS}
     best = {}
     worst = {}
     for col in table.columns:
@@ -267,7 +267,7 @@ def export_matchup_stats(leagues, is_each_category_type, sport, test_mode_on=Fal
         tables_dict = leagues_tables[league_name]
         matchup_pairs, categories = _get_matchup_pairs(soups[-1], league_name, league)
         tables_dict['Past matchup stats'] = _export_last_matchup_stats(is_each_category_type, matchup_pairs,
-                                                                       all_pairs[-1], minutes, categories)
+                                                                       all_pairs[-1], minutes, categories, False)
         overall_pairs_last_matchup.extend(matchup_pairs)
         overall_scores_last_matchup.extend(all_pairs[-1])
 
@@ -357,7 +357,7 @@ def export_matchup_stats(leagues, is_each_category_type, sport, test_mode_on=Fal
     overall_tables = {}
     if len(leagues) > 1:
         overall_tables['Past matchup overall stats'] = _export_last_matchup_stats(is_each_category_type,
-            overall_pairs_last_matchup, overall_scores_last_matchup, overall_minutes_last_matchup, categories)
+            overall_pairs_last_matchup, overall_scores_last_matchup, overall_minutes_last_matchup, categories, True)
 
     season_str = f'{this_season_begin_year}-{str(this_season_begin_year + 1)[-2:]}'
     utils.export_tables_to_html(sport, leagues_tables, overall_tables, leagues[0], season_str, matchup, test_mode_on)

@@ -185,8 +185,8 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
                 np.sum(np.array(overall_places[team]) / len(overall_places) <= styling.TOP_PERC),
                 np.sum(overall_places[team])
             ])
-        df_all_teams = pd.DataFrame(data=list(map(lambda x: x[0], overall_places.keys())),
-                                    index=overall_places.keys(), columns=['Team'])
+        df_all_teams = pd.DataFrame(data=list(map(lambda x: (x[2], x[0]), overall_places.keys())),
+                                    index=overall_places.keys(), columns=['League', 'Team'])
         df_overall_places = pd.DataFrame(data=list(overall_places.values()), index=overall_places.keys(), columns=cols)
         df_overall_places = df_all_teams.merge(df_overall_places, how='outer', left_index=True, right_index=True)
         sort_indexes = np.lexsort((df_overall_places['&#128532;'], -df_overall_places['&#128526;'],
