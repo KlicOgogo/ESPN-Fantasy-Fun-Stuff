@@ -65,7 +65,7 @@ def _get_matchup_schedule(matchup_text, season_start_year):
     return [(matchup_number, matchup_date)]
 
 
-def _get_matchup_scores(scoreboard_html, scoring='points'):
+def _get_matchup_scores(scoreboard_html, league_id, scoring='points'):
     if scoring not in ['points', 'categories']:
         raise Exception('Wrong scoring parameter!')
     league_name = _get_league_name(scoreboard_html)
@@ -77,7 +77,7 @@ def _get_matchup_scores(scoreboard_html, scoring='points'):
         for o in opponents:
             team_id = re.findall(r'teamId=(\d+)', o.findAll('a', {'class': 'truncate'})[0]['href'])[0]
             team_name = o.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text
-            team = (team_name, team_id, league_name)
+            team = (team_name, team_id, league_name, league_id)
             score_str = o.findAll('div', {'class': 'ScoreCell__Score'})[0].text
             score = float(score_str) if scoring == 'points' else score_str
             res.append((team, score))
@@ -160,5 +160,5 @@ def get_scoreboard_stats(league_id, sport, matchup, sleep_timeout=10, scoring='p
         time.sleep(sleep_timeout)
         html_soup = BeautifulSoup(_BROWSER.page_source, features='html.parser')
         soups.append(html_soup)
-        all_matchups.append(_get_matchup_scores(html_soup, scoring))
+        all_matchups.append(_get_matchup_scores(html_soup, league_id, scoring))
     return all_matchups, soups, _get_league_name(html_soup)

@@ -21,8 +21,8 @@ def _add_stats_sum(stats_dict):
         stats_dict[team].append('-'.join(map(_format_value, stats_sum)))
 
 
-def _export_last_matchup_stats(league_name, is_each_category_type, scoreboard_html, matchup_scores, minutes):
-    matchup_pairs, categories = _get_matchup_pairs(scoreboard_html, league_name)
+def _export_last_matchup_stats(league_name, league_id, is_each_category_type, scoreboard_html, matchup_scores, minutes):
+    matchup_pairs, categories = _get_matchup_pairs(scoreboard_html, league_name, league_id)
     exp_score, exp_result = _get_expected_score_and_result(matchup_pairs, categories)
     category_stats = _get_category_stats(matchup_pairs)
     places_data = _get_places_data(category_stats, categories)
@@ -176,14 +176,14 @@ def _get_expected_score_and_result(results, categories):
     return exp_scores, pair_results
 
 
-def _get_matchup_pairs(scoreboard_html, league_name):
+def _get_matchup_pairs(scoreboard_html, league_name, league_id):
     pairs_html = scoreboard_html.findAll('div', {'Scoreboard__Row'})
     pairs = []
     for m in pairs_html:
         opponents = m.findAll('li', 'ScoreboardScoreCell__Item')
         team_names = [o.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text for o in opponents]
         team_ids = [re.findall(r'teamId=(\d+)', o.findAll('a', {'class': 'truncate'})[0]['href'])[0] for o in opponents]
-        teams = [(team_name, team_id, league_name) for team_name, team_id in zip(team_names, team_ids)]
+        teams = [(team_name, team_id, league_name, league_id) for team_name, team_id in zip(team_names, team_ids)]
 
         rows = m.findAll('tr', {'Table2__tr'})
         categories = [header.text for header in rows[0].findAll('th', {'Table2__th'})[1:]]
@@ -261,11 +261,11 @@ def export_matchup_stats(leagues, is_each_category_type, sport, test_mode_on=Fal
             minutes = utils.get_minutes(league, matchup, teams,
                                         scoring_period_id, this_season_begin_year + 1, sleep_timeout)
         tables_dict = leagues_tables[league_name]
-        tables_dict['Past matchup stats'] = _export_last_matchup_stats(league_name, is_each_category_type,
+        tables_dict['Past matchup stats'] = _export_last_matchup_stats(league_name, league, is_each_category_type,
                                                                        soups[-1], all_pairs[-1], minutes)
 
         for scores, scoreboard_html in zip(all_pairs, soups):
-            matchup_pairs, categories = _get_matchup_pairs(scoreboard_html, league_name)
+            matchup_pairs, categories = _get_matchup_pairs(scoreboard_html, league_name, league)
             exp_score, exp_result = _get_expected_score_and_result(matchup_pairs, categories)
             category_stats = _get_category_stats(matchup_pairs)
             comparison_stat = _get_comparison_stats(category_stats, categories)
