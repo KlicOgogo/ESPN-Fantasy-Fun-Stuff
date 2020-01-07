@@ -252,7 +252,6 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
         all_pair_results = defaultdict(list)
         all_pair_exp_results = defaultdict(list)
         comparisons_data_dict = defaultdict(list)
-        minutes = None
 
         today = datetime.datetime.today().date()
         this_season_begin_year = today.year if today.month > 6 else today.year - 1
@@ -271,7 +270,7 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
         matchup = 1 if test_mode_on else real_matchup
         all_pairs, soups, league_name = utils.get_scoreboard_stats(league, sport, matchup, sleep_timeout, 'categories')
         is_each_category_type = _is_each_category_type(soups[-1], real_matchup)
-
+        minutes = None
         if not test_mode_on:
             teams = []
             for pair in all_pairs[-1]:
@@ -279,6 +278,7 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
             minutes = utils.get_minutes(league, matchup, teams,
                                         scoring_period_id, this_season_begin_year + 1, sleep_timeout)
             overall_minutes_last_matchup.update(minutes)
+
         tables_dict = leagues_tables[league_name]
         matchup_pairs, categories = _get_matchup_pairs(soups[-1], league_name, league)
         tables_dict['Past matchup stats'] = _export_last_matchup_stats(is_each_category_type, matchup_pairs,
