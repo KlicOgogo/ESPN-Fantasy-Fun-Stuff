@@ -1,5 +1,5 @@
 import datetime
-from collections import defaultdict
+from collections import defaultdict, Counter
 from operator import itemgetter as _itemgetter
 
 import pandas as pd
@@ -49,6 +49,7 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
         opp_luck = defaultdict(list)
         places = defaultdict(list)
         opp_places = defaultdict(list)
+        h2h_comparisons = defaultdict(lambda: defaultdict(Counter))
 
         today = datetime.datetime.today().date()
         this_season_begin_year = today.year if today.month > 6 else today.year - 1
@@ -83,6 +84,13 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
                 places[team].append(format_lambda(matchup_places[team]))
                 opp_luck[team].append(format_lambda(matchup_luck[opp_dict[team]]))
                 opp_places[team].append(format_lambda(matchup_places[opp_dict[team]]))
+
+            for team, score in matchup_scores:
+                for opp, opp_score in matchup_scores:
+                    if team == opp:
+                        continue
+                    h2h_res = 'W' if score > opp_score else 'D' if score == opp_score else 'L'
+                    h2h_comparisons[team][opp][h2h_res] += 1
 
         for team in luck:
             luck[team].extend([
@@ -146,6 +154,8 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
         styler = df_opp_places.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
             apply(styling.color_opponent_place_column, subset=matchups)
         leagues_tables[league_name]['Opponent places'] = styler.render()
+
+        leagues_tables[league_name]['Pairwise comparisons h2h'] = utils.render_h2h_table(h2h_comparisons)
 
     n_top = int(len(overall_scores) / len(leagues))
     last_matchup_scores = [(team[0], overall_scores[team][-1], team[2]) for team in overall_scores]

@@ -10,7 +10,7 @@ import styling
 import utils
 
 
-NUMBERED_VALUE_COLS = {'MIN', 'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS', 'TP'}
+CATEGORY_COLS = {'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS'}
 
 
 def _add_stats_sum(stats_dict):
@@ -61,17 +61,17 @@ def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_sco
     best_and_worst_df = pd.DataFrame(data=list(_get_best_and_worst_rows(full_df)), index=['Best', 'Worst'])
     final_df = full_df.append(best_and_worst_df, sort=False)
 
-    best_and_worst_cols = categories + ['Score', 'TP', 'MIN']
+    best_and_worst_cols = categories + ['Score', 'MIN']
     if is_each_category_type:
         best_and_worst_cols = categories + ['Score', 'ExpScore', 'MIN']
 
-    final_df_styler = final_df.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
+    styler = final_df.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
         apply(styling.color_extremums, subset=pd.IndexSlice[final_df.index, best_and_worst_cols]).\
         apply(styling.color_place_column, subset=pd.IndexSlice[full_df.index, [f'{c} ' for c in categories]])
     if not is_each_category_type:
-        final_df_styler = final_df_styler.applymap(styling.color_pair_result,
-                                                   subset=pd.IndexSlice[full_df.index, ['ER']])
-    return final_df_styler.render()
+        styler = styler.applymap(styling.color_pair_result, subset=pd.IndexSlice[full_df.index, ['ER']]).\
+            applymap(styling.color_percentage, subset=pd.IndexSlice[full_df.index, ['TP']])
+    return styler.render()
 
 
 def _format_value(x):
@@ -79,7 +79,7 @@ def _format_value(x):
 
 
 def _get_best_and_worst_values(table, col):
-    if col in NUMBERED_VALUE_COLS:
+    if col in CATEGORY_COLS | {'MIN'}:
         if col == 'TO':
             return table[col].min(), table[col].max()
         else:
@@ -96,11 +96,11 @@ def _get_best_and_worst_values(table, col):
 
 
 def _get_best_and_worst_rows(table):
-    no_value_cols = {'Pos', 'League', 'ER', 'SUM', 'W', 'L', 'D', 'WD', 'LD', 'DD'} | {f'{col} ' for col in NUMBERED_VALUE_COLS}
+    no_value_cols = {'Pos', '%', 'League', 'TP', 'ER', 'SUM', 'W', 'L', 'D', 'WD', 'LD', 'DD'}
     best = {}
     worst = {}
     for col in table.columns:
-        if col in no_value_cols:
+        if col in no_value_cols | {f'{col} ' for col in CATEGORY_COLS}:
             best[col], worst[col] = ('', '')
         elif col == 'Team':
             best[col], worst[col] = ('Best', 'Worst')
@@ -252,6 +252,7 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
         all_pair_results = defaultdict(list)
         all_pair_exp_results = defaultdict(list)
         comparisons_data_dict = defaultdict(list)
+        h2h_comparisons = defaultdict(lambda: defaultdict(Counter))
 
         today = datetime.datetime.today().date()
         this_season_begin_year = today.year if today.month > 6 else today.year - 1
@@ -307,6 +308,13 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
                 all_exp_scores[team].append(exp_score[team])
                 all_pair_exp_results[team].append(exp_result[team])
 
+            for team in category_stats:
+                for opp in category_stats:
+                    if team == opp:
+                        continue
+                    h2h_res = _get_pair_result(category_stats[team], category_stats[opp], categories)
+                    h2h_comparisons[team][opp][h2h_res] += 1
+
         _add_stats_sum(all_scores)
         _add_stats_sum(all_exp_scores)
         _add_stats_sum(comparisons_data_dict)
@@ -315,23 +323,28 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
             all_pair_results[team].append(_get_team_win_stat(all_pair_results[team]))
             all_pair_exp_results[team].append(_get_team_win_stat(all_pair_exp_results[team]))
         for team in comparisons_data_dict:
-            comparisons_data_dict[team].extend(map(int, comparisons_data_dict[team].pop().split('-')))
+            total_comparison_stat = list(map(int, comparisons_data_dict[team].pop().split('-')))
+            comparisons_data_dict[team].extend(total_comparison_stat)
+            team_power = np.sum(np.array(total_comparison_stat) * np.array([1.0, 0.0, 0.5]))
+            team_power_normalized = team_power / np.sum(total_comparison_stat)
+            comparisons_data_dict[team].append(np.round(team_power_normalized, 2))
 
         matchups = [m for m in range(1, matchup + 1)]
         teams_df = pd.DataFrame(data=list(map(lambda x: x[0], all_scores.keys())),
                                 index=all_scores.keys(), columns=['Team'])
 
         df_pairs = pd.DataFrame(data=list(comparisons_data_dict.values()), index=comparisons_data_dict.keys(),
-                                columns=[*matchups, 'W', 'L', 'D'])
+                                columns=[*matchups, 'W', 'L', 'D', '%'])
         df_pairs = teams_df.merge(df_pairs, how='outer', left_index=True, right_index=True)
-        df_pairs = df_pairs.sort_values(['W', 'D'], ascending=False)
+        df_pairs = df_pairs.iloc[np.lexsort((-df_pairs['W'], -df_pairs['W'] - df_pairs['D'] * 0.5))]
         df_pairs = utils.add_position_column(df_pairs)
         best_and_worst_df = pd.DataFrame(data=list(_get_best_and_worst_rows(df_pairs)), index=['Best', 'Worst'])
-        df_pairs = df_pairs.append(best_and_worst_df, sort=False)
-        df_pairs_styler = df_pairs.style.set_table_styles(utils.STYLES).\
+        df_pairs_final = df_pairs.append(best_and_worst_df, sort=False)
+        df_pairs_styler = df_pairs_final.style.set_table_styles(utils.STYLES).\
             set_table_attributes(utils.ATTRS).hide_index().\
-            apply(styling.color_extremums, subset=matchups)
-        tables_dict['Pairwise comparisons'] = df_pairs_styler.render()
+            apply(styling.color_extremums, subset=matchups).\
+            applymap(styling.color_percentage, subset=pd.IndexSlice[df_pairs.index, ['%']])
+        tables_dict['Pairwise comparisons by matchup'] = df_pairs_styler.render()
 
         if not is_each_category_type:
             table_win_data_dict = all_pair_exp_results.copy()
@@ -343,7 +356,7 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
             df_win = pd.DataFrame(data=list(table_win_data_dict.values()), index=table_win_data_dict.keys(),
                                   columns=[*matchups, 'Total', 'ESPN', 'WD', 'LD', 'DD'])
             df_win = teams_df.merge(df_win, how='outer', left_index=True, right_index=True)
-            df_win = df_win.sort_values(['WD', 'DD'], ascending=False)
+            df_win = df_win.iloc[np.lexsort((-df_win['WD'], -df_win['WD'] - df_win['DD'] * 0.5))]
             df_win = utils.add_position_column(df_win)
             df_win_styler = df_win.style.set_table_styles(utils.STYLES).\
                 set_table_attributes(utils.ATTRS).hide_index().\
@@ -360,7 +373,7 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
             df_exp = pd.DataFrame(data=list(table_data_dict.values()), index=table_data_dict.keys(),
                                   columns=[*matchups, 'Total', 'ESPN', 'WD', 'LD', 'DD'])
             df_exp = teams_df.merge(df_exp, how='outer', left_index=True, right_index=True)
-            df_exp = df_exp.sort_values(['WD', 'DD'], ascending=False)
+            df_exp = df_exp.iloc[np.lexsort((-df_exp['WD'], -df_exp['WD'] - df_exp['DD'] * 0.5))]
             df_exp = utils.add_position_column(df_exp)
             best_and_worst_df = pd.DataFrame(data=list(_get_best_and_worst_rows(df_exp)), index=['Best', 'Worst'])
             df_exp = df_exp.append(best_and_worst_df, sort=False)
@@ -368,6 +381,8 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
                 apply(styling.color_extremums, subset=pd.IndexSlice[df_exp.index, matchups + ['Total', 'ESPN']]).\
                 applymap(styling.color_value, subset=pd.IndexSlice[table_data_dict.keys(), ['WD']])
             tables_dict['Expected category win stats'] = df_styler.render()
+
+        leagues_tables[league_name]['Pairwise comparisons h2h'] = utils.render_h2h_table(h2h_comparisons)
 
     overall_tables = {}
     if len(leagues) > 1:
