@@ -93,20 +93,41 @@ def add_position_column(df):
     return result_df
 
 
-def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season, matchup, test_mode_on=False):
+def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season, matchup, 
+                          github_login, schedule, test_mode_on):
+    report_dir = os.path.join(REPO_ROOT_DIR, 'reports', sport, str(league_id), season)
+    Path(report_dir).mkdir(parents=True, exist_ok=True)
+    report_dir_all = [os.path.join(report_dir, path) for path in os.listdir(report_dir)]
+    report_dir_htmls = [path for path in report_dir_all if os.path.splitext(path)[1] == '.html']
+    reports = [html for html in report_dir_htmls if re.match(r'matchup_\d+\.html', os.path.basename(html))]
+    reports_matchups = [int(re.findall(r'matchup_(\d+)\.html', os.path.basename(r))[0]) for r in reports]
+    previous_reports_data = []
+    for r, m in zip(reports, reports_matchups):
+        if m <  matchup:
+            previous_reports_data.append((r.replace(REPO_ROOT_DIR.rstrip('/') + '/', ''), m))
+
+    previous_reports_render = {}
+    htmlpreview_url = 'https://htmlpreview.github.io/?https://github.com'
+    for report_link_end, number in previous_reports_data:
+        report_link = f'{htmlpreview_url}/{github_login}/ESPN-Fantasy-Fun-Stuff/blob/master/{report_link_end}'
+        this_matchup_begin, this_matchup_end = map(lambda x: x.strftime("%d/%m/%Y"), schedule[number])
+        report_text = f'Matchup {number} ({this_matchup_begin} - {this_matchup_end}).'
+        previous_reports_render[number] = (report_text, report_link)
+
     with open(os.path.join(REPO_ROOT_DIR, 'templates/matchup_report.html'), 'r') as template_fp:
         template = Template(template_fp.read())
     html_str = template.render({
+        'matchup': matchup,
         'sport': sport,
         'leagues': leagues_tables,
-        'total_tables': total_tables
+        'total_tables': total_tables,
+        'previous_reports': previous_reports_render
     })
-    index_path = os.path.join(REPO_ROOT_DIR, 'reports', sport, str(league_id), season, 'index.html')
-    Path(os.path.dirname(index_path)).mkdir(parents=True, exist_ok=True)
+    index_path = os.path.join(report_dir, 'index.html')
     with open(index_path, 'w') as html_fp:
         html_fp.write(html_str)
     if not test_mode_on:
-        matchup_path = os.path.join(REPO_ROOT_DIR, 'reports', sport, str(league_id), season, f'matchup_{matchup}.html')
+        matchup_path = os.path.join(report_dir, f'matchup_{matchup}.html')
         with open(matchup_path, 'w') as html_fp:
             html_fp.write(html_str)
 

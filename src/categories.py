@@ -241,7 +241,7 @@ def _is_each_category_type(scoreboard_html, matchup):
     return is_most_categories_count == 0
 
 
-def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
+def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep_timeout=10):
     leagues_tables = defaultdict(dict)
     overall_minutes_last_matchup = None if test_mode_on else {}
     overall_pairs_last_matchup = []
@@ -375,4 +375,5 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
             overall_pairs_last_matchup, overall_scores_last_matchup, overall_minutes_last_matchup, categories, True)
 
     season_str = f'{this_season_begin_year}-{str(this_season_begin_year + 1)[-2:]}'
-    utils.export_tables_to_html(sport, leagues_tables, overall_tables, leagues[0], season_str, matchup, test_mode_on)
+    utils.export_tables_to_html(sport, leagues_tables, overall_tables,
+                                leagues[0], season_str, matchup, github_login, schedule, test_mode_on)

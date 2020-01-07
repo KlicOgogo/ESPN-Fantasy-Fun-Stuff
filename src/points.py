@@ -41,7 +41,7 @@ def _get_sorted_matchup_scores(matchup_pairs):
     return sorted(scores, key=_itemgetter(1), reverse=True)
 
 
-def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
+def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep_timeout=10):
     overall_scores = defaultdict(list)
     leagues_tables = defaultdict(dict)
     for league in leagues:
@@ -52,15 +52,16 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
 
         today = datetime.datetime.today().date()
         this_season_begin_year = today.year if today.month > 6 else today.year - 1
-        matchup = 1
-        if not test_mode_on:
-            matchup = -1
-            schedule = utils.get_league_schedule(league, sport, this_season_begin_year, sleep_timeout)
-            yesterday = today - datetime.timedelta(days=1)
-            for matchup_number, matchup_date in schedule.items():
-                if yesterday >= matchup_date[0] and yesterday == matchup_date[1]:
-                    matchup = matchup_number
-                    break
+
+        matchup = -1
+        schedule = utils.get_league_schedule(league, sport, this_season_begin_year, sleep_timeout)
+        yesterday = today - datetime.timedelta(days=1)
+        for matchup_number, matchup_date in schedule.items():
+            if yesterday >= matchup_date[0] and yesterday == matchup_date[1]:
+                matchup = matchup_number
+                break
+        if test_mode_on:
+            matchup = 1
         if matchup == -1:
             return
 
@@ -198,4 +199,5 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
         overall_tables['Overall places'] = styler.render()
 
     season_str = f'{this_season_begin_year}-{str(this_season_begin_year + 1)[-2:]}'
-    utils.export_tables_to_html(sport, leagues_tables, overall_tables, leagues[0], season_str, matchup, test_mode_on)
+    utils.export_tables_to_html(sport, leagues_tables, overall_tables,
+                                leagues[0], season_str, matchup, github_login, schedule, test_mode_on)

@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
-	<head>ESPN fantasy {{ sport }} week report</head>
+	<head>ESPN fantasy {{ sport }} matchup {{ matchup }} report.</head>
 	<body align="center">
 {% for league_name, table_dict in leagues.items() %}
 		<h2>{{ league_name }}</h2>
 	{%- for caption, table in table_dict.items() %}
-		<h3>{{ caption }}</h3>
+		<h3>{{ caption }}:</h3>
 		<div style="overflow-x:auto;">
 		{{ table }}
 		</div>
@@ -14,11 +14,19 @@
 	{%- endfor %}
 
 	{%- for caption, table in total_tables.items() %}
-		<h3>{{ caption }}</h3>
+		<h3>{{ caption }}:</h3>
 		<div style="overflow-x:auto;">
 		{{ table }}
 		</div>
 		&nbsp;
 	{%- endfor %}
+		{%- if previous_reports|length > 0 %}
+		<h3 class="list-heading">Previous reports:</h3>
+		<ul style="list-style-type:none;">
+		{%- for matchup_number, link_data in previous_reports|dictsort(reverse=true) %}
+			<li><a href="{{ link_data[1] }}" style="text-decoration:none;">{{ link_data[0] }}</a></li>
+		{%- endfor %}
+		</ul>
+		{%- endif %}
 	</body>
 </html>
