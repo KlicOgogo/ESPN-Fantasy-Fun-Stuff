@@ -259,7 +259,7 @@ def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
 
         real_matchup = -1
         schedule = utils.get_league_schedule(league, sport, this_season_begin_year, sleep_timeout)
-        yesterday = today - datetime.timedelta(days=2) #tmp
+        yesterday = today - datetime.timedelta(days=1)
         for matchup_number, matchup_date in schedule.items():
             if yesterday >= matchup_date[0] and yesterday == matchup_date[1]:
                 real_matchup = matchup_number
