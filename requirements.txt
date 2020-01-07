@@ -1,0 +1,5 @@
+beautifulsoup4
+Jinja2
+numpy
+pandas
+selenium
