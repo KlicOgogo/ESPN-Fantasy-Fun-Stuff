@@ -10,10 +10,10 @@ SLEEP_TIMEOUT_IN_SECONDS = 7
 
 def _export_basketball_stats(test_mode_on=False):
     sport = 'basketball'
-    categories.export_matchup_stats([43767928], True, sport, test_mode_on, SLEEP_TIMEOUT_IN_SECONDS)
-    categories.export_matchup_stats([134112], True, sport, test_mode_on, SLEEP_TIMEOUT_IN_SECONDS)
+    categories.export_matchup_stats([43767928], sport, test_mode_on, SLEEP_TIMEOUT_IN_SECONDS)
+    categories.export_matchup_stats([134112], sport, test_mode_on, SLEEP_TIMEOUT_IN_SECONDS)
     rwh_leagues = [174837, 142634, 199973, 282844, 99121987]
-    categories.export_matchup_stats(rwh_leagues, False, sport, test_mode_on, SLEEP_TIMEOUT_IN_SECONDS)
+    categories.export_matchup_stats(rwh_leagues, sport, test_mode_on, SLEEP_TIMEOUT_IN_SECONDS)
 
 
 def _export_hockey_stats(test_mode_on=False):
