@@ -228,7 +228,20 @@ def _get_team_win_stat(team_stat):
     return '-'.join(map(_format_value, [team_stat.count('W'), team_stat.count('L'), team_stat.count('D')]))
 
 
-def export_matchup_stats(leagues, is_each_category_type, sport, test_mode_on=False, sleep_timeout=10):
+def _is_each_category_type(scoreboard_html, matchup):
+    records = []
+    matchups_html = scoreboard_html.findAll('div', {'Scoreboard__Row'})
+    for m in matchups_html:
+        opponents = m.findAll('li', 'ScoreboardScoreCell__Item')
+        for o in opponents:
+            record, place = o.findAll('span', 'ScoreboardScoreCell__Record')[0].text.split(',')
+            records.append(record.strip())
+    record_sums = np.array(list(map(lambda x: np.sum(list(map(int, x.split('-')))), records)))
+    is_most_categories_count = np.sum(record_sums == matchup)
+    return is_most_categories_count == 0
+
+
+def export_matchup_stats(leagues, sport, test_mode_on=False, sleep_timeout=10):
     leagues_tables = defaultdict(dict)
     overall_minutes_last_matchup = None if test_mode_on else {}
     overall_pairs_last_matchup = []
@@ -239,24 +252,25 @@ def export_matchup_stats(leagues, is_each_category_type, sport, test_mode_on=Fal
         all_pair_results = defaultdict(list)
         all_pair_exp_results = defaultdict(list)
         comparisons_data_dict = defaultdict(list)
-        minutes = None
 
         today = datetime.datetime.today().date()
         this_season_begin_year = today.year if today.month > 6 else today.year - 1
-        matchup = 1
-        if not test_mode_on:
-            matchup = -1
-            schedule, n_teams = utils.get_league_main_info(league, sport, this_season_begin_year, sleep_timeout)
-            yesterday = today - datetime.timedelta(days=1)
-            for matchup_number, matchup_date in schedule.items():
-                if yesterday >= matchup_date[0] and yesterday == matchup_date[1]:
-                    matchup = matchup_number
-                    scoring_period_id = (schedule[matchup][0] - schedule[1][0]).days + 1
-                    break
-        if matchup == -1:
+
+        real_matchup = -1
+        schedule = utils.get_league_schedule(league, sport, this_season_begin_year, sleep_timeout)
+        yesterday = today - datetime.timedelta(days=1)
+        for matchup_number, matchup_date in schedule.items():
+            if yesterday >= matchup_date[0] and yesterday == matchup_date[1]:
+                real_matchup = matchup_number
+                scoring_period_id = (schedule[real_matchup][0] - schedule[1][0]).days + 1
+                break
+        if real_matchup == -1 and not test_mode_on:
             return
 
+        matchup = 1 if test_mode_on else real_matchup
         all_pairs, soups, league_name = utils.get_scoreboard_stats(league, sport, matchup, sleep_timeout, 'categories')
+        is_each_category_type = _is_each_category_type(soups[-1], real_matchup)
+        minutes = None
         if not test_mode_on:
             teams = []
             for pair in all_pairs[-1]:
@@ -264,6 +278,7 @@ def export_matchup_stats(leagues, is_each_category_type, sport, test_mode_on=Fal
             minutes = utils.get_minutes(league, matchup, teams,
                                         scoring_period_id, this_season_begin_year + 1, sleep_timeout)
             overall_minutes_last_matchup.update(minutes)
+
         tables_dict = leagues_tables[league_name]
         matchup_pairs, categories = _get_matchup_pairs(soups[-1], league_name, league)
         tables_dict['Past matchup stats'] = _export_last_matchup_stats(is_each_category_type, matchup_pairs,

@@ -1,43 +1,39 @@
 #!/usr/bin/env python3
+import json
+import os
 import sys
 
 import categories
 import points
+from utils import REPO_ROOT_DIR
 
 
-SLEEP_TIMEOUT_IN_SECONDS = 7
-
-
-def _export_basketball_stats(test_mode_on=False):
-    sport = 'basketball'
-    categories.export_matchup_stats([43767928], True, sport, test_mode_on, SLEEP_TIMEOUT_IN_SECONDS)
-    categories.export_matchup_stats([134112], True, sport, test_mode_on, SLEEP_TIMEOUT_IN_SECONDS)
-    rwh_leagues = [174837, 142634, 199973, 282844, 99121987]
-    categories.export_matchup_stats(rwh_leagues, False, sport, test_mode_on, SLEEP_TIMEOUT_IN_SECONDS)
-
-
-def _export_hockey_stats(test_mode_on=False):
-    sport = 'hockey'
-    points.export_matchup_stats([27465869], sport, test_mode_on, SLEEP_TIMEOUT_IN_SECONDS)
-    rwh_leagues = [8290, 31769, 33730, 52338, 57256, 73362809]
-    points.export_matchup_stats(rwh_leagues, sport, test_mode_on, SLEEP_TIMEOUT_IN_SECONDS)
+def _export_stats(sport, config, timeout, test_mode_on=False):
+    for cat_leagues in config['categories']:
+        categories.export_matchup_stats(cat_leagues, sport, test_mode_on, timeout)
+    for points_leagues in config['points']:
+        points.export_matchup_stats(points_leagues, sport, test_mode_on, timeout)
 
 
 def main():
+    with open(os.path.join(REPO_ROOT_DIR, '.config'), 'r') as config_fp:
+        config = json.load(config_fp)
+    basketball = 'basketball'
+    hockey = 'hockey'
     if len(sys.argv) == 2 and sys.argv[1] == 'test':
-        _export_basketball_stats(True)
-        _export_hockey_stats(True)
+        _export_stats(basketball, config[basketball], config['timeout'], True)
+        _export_stats(hockey, config[hockey], config['timeout'], True)
     elif len(sys.argv) == 2 and sys.argv[1] == 'testhockey':
-        _export_hockey_stats(True)
+        _export_stats(hockey, config[hockey], config['timeout'], True)
     elif len(sys.argv) == 2 and sys.argv[1] == 'testbasketball':
-        _export_basketball_stats(True)
+        _export_stats(basketball, config[basketball], config['timeout'], True)
     elif len(sys.argv) == 2 and sys.argv[1] == 'hockey':
-        _export_hockey_stats()
+        _export_stats(hockey, config[hockey], config['timeout'])
     elif len(sys.argv) == 2 and sys.argv[1] == 'basketball':
-        _export_basketball_stats()
+        _export_stats(basketball, config[basketball], config['timeout'])
     else:
-        _export_basketball_stats()
-        _export_hockey_stats()
+        _export_stats(basketball, config[basketball], config['timeout'])
+        _export_stats(hockey, config[hockey], config['timeout'])
 
 
 if __name__ == '__main__':
