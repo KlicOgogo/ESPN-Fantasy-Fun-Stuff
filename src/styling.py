@@ -19,6 +19,11 @@ def color_pair_result(v):
     return f'color: {color}'
 
 
+def color_percentage(v):
+    color = 'red' if v <= 0.3 else 'green' if v >= 0.7 else 'black'
+    return f'color: {color}'
+
+
 def color_place_column(s):
     return ['color: blue' if v / len(s) <= TOP_PERC else 'color: red' if v / len(s) > 1 - TOP_PERC else '' for v in s]
 

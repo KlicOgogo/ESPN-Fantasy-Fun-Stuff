@@ -1,4 +1,6 @@
+from collections import Counter, defaultdict, OrderedDict
 import datetime
+from operator import itemgetter as _itemgetter
 import os
 from pathlib import Path
 import re
@@ -6,9 +8,11 @@ import time
 
 from bs4 import BeautifulSoup
 from jinja2 import Template
+import numpy as np
 import pandas as pd
 from selenium.webdriver import Chrome
 
+from styling import color_percentage
 
 _BROWSER = Chrome()
 ATTRS = 'style="border-collapse: collapse; border: 1px solid black;" align= "center"'
@@ -190,3 +194,33 @@ def get_scoreboard_stats(league_id, sport, matchup, sleep_timeout=10, scoring='p
         soups.append(html_soup)
         all_matchups.append(_get_matchup_scores(html_soup, league_id, scoring))
     return all_matchups, soups, _get_league_name(html_soup)
+
+
+def render_h2h_table(h2h_comparisons):
+    h2h_sums = {}
+    h2h_powers = {}
+    for team in h2h_comparisons:
+        team_h2h_sum = sum(h2h_comparisons[team].values(), Counter())
+        team_h2h_sum_list = [team_h2h_sum[result] for result in ['W', 'L', 'D']]
+        h2h_sums[team] = team_h2h_sum_list
+        h2h_powers[team] = (np.sum(np.array(team_h2h_sum_list) * np.array([1.0, 0.0, 0.5])), team_h2h_sum['W'])
+    h2h_sums_sorted = sorted(h2h_powers.items(), key=_itemgetter(1), reverse=True)
+    h2h_order = [team for team, _ in h2h_sums_sorted]
+
+    h2h_data = defaultdict(list)
+    for team in h2h_order:
+        for opp in h2h_order:
+            if team == opp:
+                h2h_data[team].append('')
+            else:
+                comp = h2h_comparisons[team][opp]
+                h2h_data[team].append('-'.join(map(str, [comp['W'], comp['L'], comp['D']])))
+
+    df_h2h = pd.DataFrame(data=[[team[0], *h2h_data[team], *h2h_sums[team],
+                                 np.round(h2h_powers[team][0] / np.sum(h2h_sums[team]), 2) ] for team in h2h_order],
+                          index=OrderedDict([(t, '') for t in h2h_order]).keys(),
+                          columns=['Team', *[m for m in range(1, len(h2h_comparisons)+1)], 'W', 'L', 'D', '%'])
+    df_h2h = add_position_column(df_h2h)
+    styler = df_h2h.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
+        applymap(color_percentage, subset=['%'])
+    return styler.render()
