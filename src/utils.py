@@ -111,9 +111,8 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season
             previous_reports_data.append((r.replace(REPO_ROOT_DIR.rstrip('/') + '/', ''), m))
 
     previous_reports_render = {}
-    htmlpreview_url = 'https://htmlpreview.github.io/?https://github.com'
     for report_link_end, number in previous_reports_data:
-        report_link = f'{htmlpreview_url}/{github_login}/ESPN-Fantasy-Fun-Stuff/blob/master/{report_link_end}'
+        report_link = f'https://{github_login.lower()}.github.io/ESPN-Fantasy-Fun-Stuff/{report_link_end}'
         this_matchup_begin, this_matchup_end = map(lambda x: x.strftime("%d/%m/%Y"), schedule[number])
         report_text = f'Matchup {number} ({this_matchup_begin} - {this_matchup_end}).'
         previous_reports_render[number] = (report_text, report_link)
