@@ -88,10 +88,15 @@ def _get_best_and_worst_values(table, col):
         scores_for_sort = []
         for sc in table[col]:
             sc_values = list(map(float, sc.split('-')))
-            scores_for_sort.append([sc_values[i] for i in [0, 2, 1]])
+            if len(sc_values) == 3:
+                scores_for_sort.append([sc_values[i] for i in [0, 2, 1]])
+            elif len(sc_values) == 2:
+                scores_for_sort.append(sc_values)
+            else:
+                raise Exception('Unexpected value format.')
         max_val = max(scores_for_sort)
         min_val = min(scores_for_sort)
-        format_score_lambda = lambda x: '-'.join(map(_format_value, [x[i] for i in [0, 2, 1]]))
+        format_score_lambda = lambda x: '-'.join(map(_format_value, [x[i] for i in [0, 2, 1]] if len(x) == 3 else x))
         return format_score_lambda(max_val), format_score_lambda(min_val)
 
 
@@ -238,6 +243,7 @@ def _is_each_category_type(scoreboard_html, matchup):
             records.append(record.strip())
     record_sums = np.array(list(map(lambda x: np.sum(list(map(int, x.split('-')))), records)))
     is_most_categories_count = np.sum(record_sums == matchup)
+    return False
     return is_most_categories_count == 0
 
 
@@ -255,20 +261,13 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
         h2h_comparisons = defaultdict(lambda: defaultdict(Counter))
 
         today = datetime.datetime.today().date()
-        this_season_begin_year = today.year if today.month > 6 else today.year - 1
-
-        real_matchup = -1
-        schedule = utils.get_league_schedule(league, sport, this_season_begin_year, sleep_timeout)
-        yesterday = today - datetime.timedelta(days=1)
-        for matchup_number, matchup_date in schedule.items():
-            if yesterday >= matchup_date[0] and yesterday == matchup_date[1]:
-                real_matchup = matchup_number
-                scoring_period_id = (schedule[real_matchup][0] - schedule[1][0]).days + 1
-                break
+        season_start_year = today.year if today.month > 6 else today.year - 1
+        schedule = utils.get_league_schedule(league, sport, season_start_year, sleep_timeout)
+        real_matchup = utils.find_proper_matchup(schedule)
         if real_matchup == -1 and not test_mode_on:
             return
-
         matchup = 1 if test_mode_on else real_matchup
+
         all_pairs, soups, league_name = utils.get_scoreboard_stats(league, sport, matchup, sleep_timeout, 'categories')
         is_each_category_type = _is_each_category_type(soups[-1], real_matchup)
         minutes = None
@@ -276,8 +275,9 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
             teams = []
             for pair in all_pairs[-1]:
                 teams.append((pair[0][0], pair[1][0]))
+            scoring_period_id = (schedule[real_matchup][0] - schedule[1][0]).days + 1
             minutes = utils.get_minutes(league, matchup, teams,
-                                        scoring_period_id, this_season_begin_year + 1, sleep_timeout)
+                                        scoring_period_id, season_start_year + 1, sleep_timeout)
             overall_minutes_last_matchup.update(minutes)
 
         tables_dict = leagues_tables[league_name]
@@ -295,12 +295,10 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
             for team in comparison_stat:
                 comparisons_data_dict[team].append('-'.join(map(str, comparison_stat[team])))
 
-            opp_dict = {}
             for sc in scores:
-                opp_dict[sc[0][0]] = sc[1][0]
-                opp_dict[sc[1][0]] = sc[0][0]
                 all_scores[sc[0][0]].append(sc[0][1])
                 all_scores[sc[1][0]].append(sc[1][1])
+            opp_dict = utils.get_opponent_dict(scores)
             for team in opp_dict:
                 pair_result = _get_pair_result(category_stats[team], category_stats[opp_dict[team]], categories)
                 all_pair_results[team].append(pair_result)
@@ -345,6 +343,7 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
             apply(styling.color_extremums, subset=matchups).\
             applymap(styling.color_percentage, subset=pd.IndexSlice[df_pairs.index, ['%']])
         tables_dict['Pairwise comparisons by matchup'] = df_pairs_styler.render()
+        leagues_tables[league_name]['Pairwise comparisons h2h'] = utils.render_h2h_table(h2h_comparisons)
 
         if not is_each_category_type:
             table_win_data_dict = all_pair_exp_results.copy()
@@ -382,13 +381,11 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
                 applymap(styling.color_value, subset=pd.IndexSlice[table_data_dict.keys(), ['WD']])
             tables_dict['Expected category win stats'] = df_styler.render()
 
-        leagues_tables[league_name]['Pairwise comparisons h2h'] = utils.render_h2h_table(h2h_comparisons)
-
     overall_tables = {}
     if len(leagues) > 1:
         overall_tables['Past matchup overall stats'] = _export_last_matchup_stats(is_each_category_type,
             overall_pairs_last_matchup, overall_scores_last_matchup, overall_minutes_last_matchup, categories, True)
 
-    season_str = f'{this_season_begin_year}-{str(this_season_begin_year + 1)[-2:]}'
+    season_str = f'{season_start_year}-{str(season_start_year + 1)[-2:]}'
     utils.export_tables_to_html(sport, leagues_tables, overall_tables,
                                 leagues[0], season_str, matchup, github_login, schedule, test_mode_on)

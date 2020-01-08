@@ -27,6 +27,7 @@ STYLES = [
                                ('padding-left', '6px')]),
     dict(selector='tr:nth-child(odd)', props=[('background', '#F0F0F0')]),
 ]
+TOP_PERC = 0.4
 ZERO = 1e-7
 
 
@@ -135,6 +136,16 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season
             html_fp.write(html_str)
 
 
+def find_proper_matchup(schedule):
+    matchup = -1
+    yesterday = datetime.datetime.today().date() - datetime.timedelta(days=1)
+    for matchup_number, matchup_date in schedule.items():
+        if yesterday == matchup_date[1]:
+            matchup = matchup_number
+            break
+    return matchup
+
+
 def get_league_schedule(league_id, sport, season_start_year, sleep_timeout=10):
     espn_scoreboard_url = f'https://fantasy.espn.com/{sport}/league/scoreboard'
     url = f'{espn_scoreboard_url}?leagueId={league_id}&matchupPeriodId=1'
@@ -166,6 +177,13 @@ def get_minutes(league, matchup, teams, scoring_period_id, season_id, sleep_time
             minutes_dict[pair[index]] = minutes
     return minutes_dict
 
+
+def get_opponent_dict(scores):
+    opp_dict = {}
+    for s in scores:
+        opp_dict[s[0][0]] = s[1][0]
+        opp_dict[s[1][0]] = s[0][0]
+    return opp_dict
 
 def get_places(sorted_scores):
     places = {}
