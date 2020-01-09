@@ -1,6 +1,6 @@
 import datetime
 from collections import defaultdict, Counter
-from operator import itemgetter as _itemgetter
+from operator import itemgetter
 import re
 
 import numpy as np
@@ -29,36 +29,35 @@ def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_sco
     for s in matchup_scores:
         matchup_scores_dict.update(s)
 
-    teams_df = pd.DataFrame(data=list(map(lambda x: (x[2], x[0]) if is_overall else x[0], category_stats.keys())),
+    teams_df = pd.DataFrame(list(map(itemgetter(2, 0) if is_overall else itemgetter(0), category_stats.keys())),
                             index=category_stats.keys(), columns=['League', 'Team'] if is_overall else ['Team'])
-    stats_df = pd.DataFrame(data=list(category_stats.values()), index=category_stats.keys(), columns=categories)
+    stats_df = pd.DataFrame(list(category_stats.values()), index=category_stats.keys(), columns=categories)
     if minutes is None:
         full_df = teams_df.merge(stats_df, how='outer', left_index=True, right_index=True)
     else:
-        minutes_df = pd.DataFrame(data=list(minutes.values()), index=minutes.keys(), columns=['MIN'])
+        minutes_df = pd.DataFrame(list(minutes.values()), index=minutes.keys(), columns=['MIN'])
         full_df = teams_df.merge(minutes_df, how='outer', left_index=True, right_index=True)
         full_df = full_df.merge(stats_df, how='outer', left_index=True, right_index=True)
-    score_df = pd.DataFrame(data=list(matchup_scores_dict.values()), 
-                            index=matchup_scores_dict.keys(), columns=['Score'])
-    places_df = pd.DataFrame(data=list(places_data.values()), index=places_data.keys(),
+    score_df = pd.DataFrame(list(matchup_scores_dict.values()), index=matchup_scores_dict.keys(), columns=['Score'])
+    places_df = pd.DataFrame(list(places_data.values()), index=places_data.keys(),
                              columns=[f'{col} ' for col in categories] + ['SUM'])
     full_df = full_df.merge(score_df, how='outer', left_index=True, right_index=True)
     if is_each_category_type:
-        exp_score_df = pd.DataFrame(data=list(exp_score.values()), index=exp_score.keys(), columns=['ExpScore'])
+        exp_score_df = pd.DataFrame(list(exp_score.values()), index=exp_score.keys(), columns=['ExpScore'])
         full_df = full_df.merge(exp_score_df, how='outer', left_index=True, right_index=True)
     else:
         comparison_stats = _get_comparison_stats(category_stats, categories)
         calc_power_lambda = lambda x, y: np.round((x[0] + x[2] * 0.5) / y, 2)
         n_opponents = len(comparison_stats) - 1
         team_power = {team: calc_power_lambda(comparison_stats[team], n_opponents) for team in comparison_stats}
-        team_power_df = pd.DataFrame(data=list(team_power.values()), index=team_power.keys(), columns=['TP'])
+        team_power_df = pd.DataFrame(list(team_power.values()), index=team_power.keys(), columns=['TP'])
         full_df = full_df.merge(team_power_df, how='outer', left_index=True, right_index=True)
-        exp_res_df = pd.DataFrame(data=list(exp_result.values()), index=exp_result.keys(), columns=['ER'])
+        exp_res_df = pd.DataFrame(list(exp_result.values()), index=exp_result.keys(), columns=['ER'])
         full_df = full_df.merge(exp_res_df, how='outer', left_index=True, right_index=True)
     full_df = full_df.merge(places_df, how='outer', left_index=True, right_index=True)
     full_df = full_df.iloc[np.lexsort((-full_df['PTS'], full_df['SUM']))]
     full_df = utils.add_position_column(full_df)
-    best_and_worst_df = pd.DataFrame(data=list(_get_best_and_worst_rows(full_df)), index=['Best', 'Worst'])
+    best_and_worst_df = pd.DataFrame(list(_get_best_and_worst_rows(full_df)), index=['Best', 'Worst'])
     final_df = full_df.append(best_and_worst_df, sort=False)
 
     best_and_worst_cols = categories + ['Score', 'MIN']
@@ -80,10 +79,8 @@ def _format_value(x):
 
 def _get_best_and_worst_values(table, col):
     if col in CATEGORY_COLS | {'MIN'}:
-        if col == 'TO':
-            return table[col].min(), table[col].max()
-        else:
-            return table[col].max(), table[col].min()
+        extremums = (table[col].max(), table[col].min())
+        return extremums[::-1] if col == 'TO' else extremums
     else:
         scores_for_sort = []
         for sc in table[col]:
@@ -155,10 +152,7 @@ def _get_expected_category_probs(score_pairs, category):
 
 def _get_expected_score_and_result(results, categories):
     res = {}
-    opponents_dict = {}
     for pair in results:
-        opponents_dict[pair[0][0]] = pair[1][0]
-        opponents_dict[pair[1][0]] = pair[0][0]
         res[pair[0][0]] = np.array([0.0, 0.0, 0.0])
         res[pair[1][0]] = np.array([0.0, 0.0, 0.0])
     category_stats = _get_category_stats(results)
@@ -170,6 +164,7 @@ def _get_expected_score_and_result(results, categories):
             concatted = np.vstack((expected_stats[team], res[team]))
             res[team] = concatted.sum(axis=0)
     pair_results = {}
+    opponents_dict = utils.get_opponent_dict(results)
     for team in opponents_dict:
         if list(res[team][[0, 2, 1]]) > list(res[opponents_dict[team]][[0, 2, 1]]):
             pair_results[team] = 'W'
@@ -220,7 +215,7 @@ def _get_places_data(category_stats, categories):
     places_data = defaultdict(list)
     for index, cat in enumerate(categories):
         pairs = [(team, category_stats[team][index]) for team in category_stats]
-        pairs_sorted = sorted(pairs, key=_itemgetter(1), reverse=False if cat == 'TO' else True)
+        pairs_sorted = sorted(pairs, key=itemgetter(1), reverse=False if cat == 'TO' else True)
         places = utils.get_places(pairs_sorted)
         for team in places:
             places_data[team].append(places[team])
@@ -246,7 +241,14 @@ def _is_each_category_type(scoreboard_html, matchup):
     return is_most_categories_count == 0
 
 
-def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep_timeout=10):
+def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False, sleep_timeout=10):
+    print(leagues_tuple)
+    if len(leagues_tuple) == 1:
+        leagues, tiebreaker = leagues_tuple[0], 'NO'
+    elif len(leagues_tuple) == 2:
+        leagues, tiebreaker = leagues_tuple
+    else:
+        raise Exception('Wrong config: leagues tuple must contain 1 or 2 elements.')
     leagues_tables = defaultdict(dict)
     overall_minutes_last_matchup = None if test_mode_on else {}
     overall_pairs_last_matchup = []

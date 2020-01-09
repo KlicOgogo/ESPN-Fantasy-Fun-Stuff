@@ -225,10 +225,10 @@ def render_h2h_table(h2h_comparisons):
                 comp = h2h_comparisons[team][opp]
                 h2h_data[team].append('-'.join(map(str, [comp['W'], comp['L'], comp['D']])))
 
-    df_h2h = pd.DataFrame(data=[[team[0], *h2h_data[team], *h2h_sums[team],
-                                 np.round(h2h_powers[team][0] / np.sum(h2h_sums[team]), 2) ] for team in h2h_order],
-                          columns=['Team', *[m for m in range(1, len(h2h_comparisons)+1)], 'W', 'L', 'D', '%'])
-    df_h2h = add_position_column(df_h2h)
-    styler = df_h2h.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
+    df = pd.DataFrame(data=[[team[0], *h2h_data[team], *h2h_sums[team],
+                             np.round(h2h_powers[team][0] / np.sum(h2h_sums[team]), 2) ] for team in h2h_order],
+                      columns=['Team', *[m for m in range(1, len(h2h_comparisons)+1)], 'W', 'L', 'D', '%'])
+    df = add_position_column(df)
+    styler = df.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
         applymap(color_percentage, subset=['%'])
     return styler.render()
