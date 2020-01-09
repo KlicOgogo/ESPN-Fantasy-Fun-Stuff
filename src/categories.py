@@ -21,11 +21,10 @@ def _add_stats_sum(stats_dict, split=True):
         stats_dict[team].append('-'.join(map(_format_value, stats_sum)))
 
 
-def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_scores, minutes, categories, is_overall):
+def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_scores, minutes, categories, is_overall, display_draw):
     category_stats = _get_category_stats(matchup_pairs)
     opp_dict = utils.get_opponent_dict(matchup_pairs)
     exp_score, exp_result = _get_expected_score_and_result(category_stats, opp_dict, categories)
-    exp_score_str = {team: '-'.join(map(lambda x: _format_value(np.round(x, 1)), exp_score[team])) for team in exp_score}
     places_data = _get_places_data(category_stats, categories)
     matchup_scores_dict = {}
     for s in matchup_scores:
@@ -45,6 +44,8 @@ def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_sco
                              columns=[f'{col} ' for col in categories] + ['SUM'])
     full_df = full_df.merge(score_df, how='outer', left_index=True, right_index=True)
     if is_each_category_type:
+        slice_end = 3 if display_draw else 2
+        exp_score_str = {team: '-'.join(map(lambda x: _format_value(np.round(x, 1)), exp_score[team][:slice_end])) for team in exp_score}
         exp_score_df = pd.DataFrame(list(exp_score_str.values()), index=exp_score_str.keys(), columns=['ExpScore'])
         full_df = full_df.merge(exp_score_df, how='outer', left_index=True, right_index=True)
     else:
@@ -278,12 +279,12 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
             overall_minutes_last_matchup.update(minutes)
 
         tables_dict = leagues_tables[league_name]
+        display_draw = len(all_pairs[-1][0][0][1].split('-')) == 3
         matchup_pairs, categories = _get_matchup_pairs(soups[-1], league_name, league)
         tables_dict['Past matchup stats'] = _export_last_matchup_stats(is_each_category_type, matchup_pairs,
-                                                                       all_pairs[-1], minutes, categories, False)
+                                                                       all_pairs[-1], minutes, categories, False, display_draw)
         overall_pairs_last_matchup.extend(matchup_pairs)
         overall_scores_last_matchup.extend(all_pairs[-1])
-        display_draw = len(all_pairs[-1][0][0][1].split('-')) == 3
 
         for scores, scoreboard_html in zip(all_pairs, soups):
             matchup_pairs, categories = _get_matchup_pairs(scoreboard_html, league_name, league)
@@ -365,14 +366,14 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
 
         if is_each_category_type:
             for team in all_exp_scores:
+                slice_end = 3 if display_draw else 2
                 real_scores = np.array(list(map(float, all_scores[team][-1].split('-'))))
                 n_draw = matchup * len(categories) - np.sum(real_scores[:2])
                 real_scores = real_scores if display_draw else np.array([*real_scores, n_draw])
-
                 all_exp_scores[team].append(real_scores)
                 all_exp_scores[team].extend(all_exp_scores[team][-1] - all_exp_scores[team][-2])
                 for i in range(len(all_exp_scores[team]) - 3):
-                    all_exp_scores[team][i] = '-'.join(map(lambda x: _format_value(np.round(x, 1)), all_exp_scores[team][i]))
+                    all_exp_scores[team][i] = '-'.join(map(lambda x: _format_value(np.round(x, 1)), all_exp_scores[team][i][:slice_end]))
                 for i in range(len(all_exp_scores[team]) - 3, len(all_exp_scores[team])):
                     all_exp_scores[team][i] = np.round(all_exp_scores[team][i], 1)
 
@@ -391,7 +392,7 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
     overall_tables = {}
     if len(leagues) > 1:
         overall_tables['Past matchup overall stats'] = _export_last_matchup_stats(is_each_category_type,
-            overall_pairs_last_matchup, overall_scores_last_matchup, overall_minutes_last_matchup, categories, True)
+            overall_pairs_last_matchup, overall_scores_last_matchup, overall_minutes_last_matchup, categories, True, display_draw)
 
     season_str = f'{season_start_year}-{str(season_start_year + 1)[-2:]}'
     utils.export_tables_to_html(sport, leagues_tables, overall_tables,
