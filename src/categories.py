@@ -243,7 +243,6 @@ def _is_each_category_type(scoreboard_html, matchup):
             records.append(record.strip())
     record_sums = np.array(list(map(lambda x: np.sum(list(map(int, x.split('-')))), records)))
     is_most_categories_count = np.sum(record_sums == matchup)
-    return False
     return is_most_categories_count == 0
 
 
@@ -342,8 +341,8 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
             set_table_attributes(utils.ATTRS).hide_index().\
             apply(styling.color_extremums, subset=matchups).\
             applymap(styling.color_percentage, subset=pd.IndexSlice[df_pairs.index, ['%']])
+        tables_dict['Pairwise comparisons h2h'] = utils.render_h2h_table(h2h_comparisons)
         tables_dict['Pairwise comparisons by matchup'] = df_pairs_styler.render()
-        leagues_tables[league_name]['Pairwise comparisons h2h'] = utils.render_h2h_table(h2h_comparisons)
 
         if not is_each_category_type:
             table_win_data_dict = all_pair_exp_results.copy()
