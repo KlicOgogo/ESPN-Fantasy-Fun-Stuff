@@ -1,6 +1,6 @@
-from collections import Counter, defaultdict, OrderedDict
+from collections import Counter, defaultdict
 import datetime
-from operator import itemgetter as _itemgetter
+from operator import itemgetter
 import os
 from pathlib import Path
 import re
@@ -45,20 +45,13 @@ def _get_matchup_date(matchup_text, season_start_year):
     start_components = start_str.split(' ')
     start_month = months[start_components[0].lower()]
     start_day = int(start_components[1])
-    end_components = end_str.split(' ')
-    if len(end_components) == 1:
-        end_month = start_month
-        end_day = int(end_components[0])
-    else:
-        end_month = months[end_components[0].lower()]
-        end_day = int(end_components[1])
     start_year = season_start_year if start_month > 6 else season_start_year + 1
+    end_components = end_str.split(' ')
+    end_month = start_month if len(end_components) == 1 else months[end_components[0].lower()]
+    end_day = int(end_components[0]) if len(end_components) == 1 else int(end_components[1])
     end_year = season_start_year if end_month > 6 else season_start_year + 1
-    get_day_str = lambda year, month, day: datetime.datetime(year=year, month=month, day=day).date()
-    return (
-        get_day_str(start_year, start_month, start_day),
-        get_day_str(end_year, end_month, end_day)
-    )
+    get_day = lambda year, month, day: datetime.datetime(year=year, month=month, day=day).date()
+    return (get_day(start_year, start_month, start_day), get_day(end_year, end_month, end_day))
 
 
 def _get_matchup_number(matchup_text):
@@ -108,7 +101,7 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season
     reports_matchups = [int(re.findall(r'matchup_(\d+)\.html', os.path.basename(r))[0]) for r in reports]
     previous_reports_data = []
     for r, m in zip(reports, reports_matchups):
-        if m <  matchup:
+        if m < matchup:
             previous_reports_data.append((r.replace(REPO_ROOT_DIR.rstrip('/') + '/', ''), m))
 
     previous_reports_render = {}
@@ -137,13 +130,12 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season
 
 
 def find_proper_matchup(schedule):
-    matchup = -1
     yesterday = datetime.datetime.today().date() - datetime.timedelta(days=1)
     for matchup_number, matchup_date in schedule.items():
-        if yesterday == matchup_date[1]:
-            matchup = matchup_number
-            break
-    return matchup
+        if yesterday != matchup_date[1]:
+            continue
+        return matchup_number
+    return -1
 
 
 def get_league_schedule(league_id, sport, season_start_year, sleep_timeout=10):
@@ -152,7 +144,6 @@ def get_league_schedule(league_id, sport, season_start_year, sleep_timeout=10):
     _BROWSER.get(url)
     time.sleep(sleep_timeout)
     scoreboard_html = BeautifulSoup(_BROWSER.page_source, features='html.parser')
-
     matchups_dropdown = scoreboard_html.findAll('div', {'class': 'dropdown'})[0]
     matchups_html_list = matchups_dropdown.findAll('option')
     schedule = {}
@@ -184,6 +175,7 @@ def get_opponent_dict(scores):
         opp_dict[s[0][0]] = s[1][0]
         opp_dict[s[1][0]] = s[0][0]
     return opp_dict
+
 
 def get_places(sorted_scores):
     places = {}
@@ -221,7 +213,7 @@ def render_h2h_table(h2h_comparisons):
         team_h2h_sum_list = [team_h2h_sum[result] for result in ['W', 'L', 'D']]
         h2h_sums[team] = team_h2h_sum_list
         h2h_powers[team] = (np.sum(np.array(team_h2h_sum_list) * np.array([1.0, 0.0, 0.5])), team_h2h_sum['W'])
-    h2h_sums_sorted = sorted(h2h_powers.items(), key=_itemgetter(1), reverse=True)
+    h2h_sums_sorted = sorted(h2h_powers.items(), key=itemgetter(1), reverse=True)
     h2h_order = [team for team, _ in h2h_sums_sorted]
 
     h2h_data = defaultdict(list)
@@ -235,7 +227,6 @@ def render_h2h_table(h2h_comparisons):
 
     df_h2h = pd.DataFrame(data=[[team[0], *h2h_data[team], *h2h_sums[team],
                                  np.round(h2h_powers[team][0] / np.sum(h2h_sums[team]), 2) ] for team in h2h_order],
-                          index=OrderedDict([(t, '') for t in h2h_order]).keys(),
                           columns=['Team', *[m for m in range(1, len(h2h_comparisons)+1)], 'W', 'L', 'D', '%'])
     df_h2h = add_position_column(df_h2h)
     styler = df_h2h.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
