@@ -91,12 +91,12 @@ def _get_best_and_worst_values(table, col):
             if len(sc_values) == 3:
                 scores_for_sort.append([sc_values[i] for i in [0, 2, 1]])
             elif len(sc_values) == 2:
-                scores_for_sort.append(sc_values)
+                scores_for_sort.append([sc_values[0], -sc_values[1]])
             else:
                 raise Exception('Unexpected value format.')
         max_val = max(scores_for_sort)
         min_val = min(scores_for_sort)
-        format_score_lambda = lambda x: '-'.join(map(_format_value, [x[i] for i in [0, 2, 1]] if len(x) == 3 else x))
+        format_score_lambda = lambda x: '-'.join(map(_format_value, [x[i] for i in [0, 2, 1]] if len(x) == 3 else [x[0], -x[1]]))
         return format_score_lambda(max_val), format_score_lambda(min_val)
 
 
@@ -239,7 +239,6 @@ def _is_each_category_type(scoreboard_html, matchup):
 
 
 def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False, sleep_timeout=10):
-    print(leagues_tuple)
     if len(leagues_tuple) == 1:
         leagues, tiebreaker = leagues_tuple[0], 'NO'
     elif len(leagues_tuple) == 2:
