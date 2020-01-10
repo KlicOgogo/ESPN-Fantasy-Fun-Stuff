@@ -14,7 +14,7 @@ import utils
 CATEGORY_COLS = {'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS'}
 
 
-def _add_stats_sum(stats_dict, split=True):
+def _add_stats_sum(stats_dict):
     for team in stats_dict:
         team_stats = [np.array(list(map(float, score.split('-')))) for score in stats_dict[team]]
         team_stats_array = np.vstack(team_stats)
@@ -247,7 +247,6 @@ def _is_each_category_type(scoreboard_html, matchup):
             records.append(record.strip())
     record_sums = np.array(list(map(lambda x: np.sum(list(map(int, x.split('-')))), records)))
     is_most_categories_count = np.sum(record_sums == matchup)
-    # return False
     return is_most_categories_count == 0
 
 
