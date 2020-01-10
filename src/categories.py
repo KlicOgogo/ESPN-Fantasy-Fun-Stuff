@@ -1,5 +1,6 @@
 import datetime
 from collections import defaultdict, Counter
+import copy
 from operator import itemgetter
 import re
 
@@ -21,10 +22,10 @@ def _add_stats_sum(stats_dict, split=True):
         stats_dict[team].append('-'.join(map(_format_value, stats_sum)))
 
 
-def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_scores, minutes, categories, is_overall, display_draw):
+def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_scores, minutes, categories, is_overall, display_draw, tiebreaker):
     category_stats = _get_category_stats(matchup_pairs)
     opp_dict = utils.get_opponent_dict(matchup_pairs)
-    exp_score, exp_result = _get_expected_score_and_result(category_stats, opp_dict, categories)
+    exp_score, exp_result = _get_expected_score_and_result(category_stats, opp_dict, categories, tiebreaker)
     places_data = _get_places_data(category_stats, categories)
     matchup_scores_dict = {}
     for s in matchup_scores:
@@ -49,7 +50,7 @@ def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_sco
         exp_score_df = pd.DataFrame(list(exp_score_str.values()), index=exp_score_str.keys(), columns=['ExpScore'])
         full_df = full_df.merge(exp_score_df, how='outer', left_index=True, right_index=True)
     else:
-        comparison_stats = _get_comparison_stats(category_stats, categories)
+        comparison_stats = _get_comparison_stats(category_stats, categories, tiebreaker)
         calc_power_lambda = lambda x, y: np.round((x[0] + x[2] * 0.5) / y, 2)
         n_opponents = len(comparison_stats) - 1
         team_power = {team: calc_power_lambda(comparison_stats[team], n_opponents) for team in comparison_stats}
@@ -122,14 +123,14 @@ def _get_category_stats(results):
     return category_stats
 
 
-def _get_comparison_stats(category_stats, categories):
+def _get_comparison_stats(category_stats, categories, tiebreaker):
     comparison_stats = {}
     for team in category_stats:
         matchup_wins = Counter()
         for opp in category_stats:
             if opp == team:
                 continue
-            fake_pair_res = _get_pair_result(category_stats[team], category_stats[opp], categories)
+            fake_pair_res = _get_pair_result(category_stats[team], category_stats[opp], categories, tiebreaker)
             matchup_wins[fake_pair_res] += 1
         comparison_stats[team] = [matchup_wins['W'], matchup_wins['L'], matchup_wins['D']]
     return comparison_stats
@@ -153,11 +154,14 @@ def _get_expected_category_probs(score_pairs, category):
     return result
 
 
-def _get_expected_score_and_result(category_stats, opponents_dict, categories):
+def _get_expected_score_and_result(category_stats, opponents_dict, categories, tiebreaker):
     res = {team: np.array([0.0, 0.0, 0.0]) for team in category_stats}
+    tiebreaker_stats = copy.deepcopy(res)
     for i, cat in enumerate(categories):
         pairs = [(team, category_stats[team][i]) for team in category_stats]
         expected_stats = _get_expected_category_probs(pairs, cat)
+        if cat == tiebreaker:
+            tiebreaker_stats = copy.deepcopy(expected_stats)
         for team in expected_stats:
             concatted = np.vstack((expected_stats[team], res[team]))
             res[team] = concatted.sum(axis=0)
@@ -168,7 +172,12 @@ def _get_expected_score_and_result(category_stats, opponents_dict, categories):
         elif list(res[team][[0, 2, 1]]) < list(res[opponents_dict[team]][[0, 2, 1]]):
             pair_results[team] = 'L'
         else:
-            pair_results[team] = 'D'
+            if list(tiebreaker_stats[team][[0, 2, 1]]) > list(tiebreaker_stats[opponents_dict[team]][[0, 2, 1]]):
+                pair_results[team] = 'W'
+            elif list(tiebreaker_stats[team][[0, 2, 1]]) < list(tiebreaker_stats[opponents_dict[team]][[0, 2, 1]]):
+                pair_results[team] = 'L'
+            else:
+                pair_results[team] = 'D'
     return res, pair_results
 
 
@@ -193,16 +202,16 @@ def _get_matchup_pairs(scoreboard_html, league_name, league_id):
     return pairs, categories
 
 
-def _get_pair_result(team_stat, opp_stat, categories):
+def _get_pair_result(team_stat, opp_stat, categories, tiebreaker):
     win_count = 0
     lose_count = 0
     for index, cat in enumerate(categories):
         if team_stat[index] > opp_stat[index]:
-            lose_count += (cat == 'TO')
-            win_count += (cat != 'TO')
+            lose_count += (cat == 'TO') * ((tiebreaker == cat) + 2) / 2
+            win_count += (cat != 'TO') * ((tiebreaker == cat) + 2) / 2
         elif team_stat[index] < opp_stat[index]:
-            lose_count += (cat != 'TO')
-            win_count += (cat == 'TO')
+            lose_count += (cat != 'TO') * ((tiebreaker == cat) + 2) / 2
+            win_count += (cat == 'TO')  * ((tiebreaker == cat) + 2) / 2
     result = 'D' if win_count == lose_count else 'W' if win_count > lose_count else 'L'
     return result
 
@@ -281,7 +290,7 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
         display_draw = len(all_pairs[-1][0][0][1].split('-')) == 3
         matchup_pairs, categories = _get_matchup_pairs(soups[-1], league_name, league)
         tables_dict['Past matchup stats'] = _export_last_matchup_stats(is_each_category_type, matchup_pairs,
-                                                                       all_pairs[-1], minutes, categories, False, display_draw)
+                                                                       all_pairs[-1], minutes, categories, False, display_draw,  tiebreaker)
         overall_pairs_last_matchup.extend(matchup_pairs)
         overall_scores_last_matchup.extend(all_pairs[-1])
 
@@ -289,8 +298,8 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
             matchup_pairs, categories = _get_matchup_pairs(scoreboard_html, league_name, league)
             category_stats = _get_category_stats(matchup_pairs)
             opp_dict = utils.get_opponent_dict(scores)
-            exp_score, exp_result = _get_expected_score_and_result(category_stats, opp_dict, categories)
-            comparison_stat = _get_comparison_stats(category_stats, categories)
+            exp_score, exp_result = _get_expected_score_and_result(category_stats, opp_dict, categories, tiebreaker)
+            comparison_stat = _get_comparison_stats(category_stats, categories, tiebreaker)
             for team in comparison_stat:
                 comparisons_data_dict[team].append('-'.join(map(str, comparison_stat[team])))
 
@@ -298,7 +307,7 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
                 all_scores[sc[0][0]].append(sc[0][1])
                 all_scores[sc[1][0]].append(sc[1][1])
             for team in opp_dict:
-                pair_result = _get_pair_result(category_stats[team], category_stats[opp_dict[team]], categories)
+                pair_result = _get_pair_result(category_stats[team], category_stats[opp_dict[team]], categories, tiebreaker)
                 all_pair_results[team].append(pair_result)
             for team in exp_score:
                 all_exp_scores[team].append(exp_score[team])
@@ -308,7 +317,7 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
                 for opp in category_stats:
                     if team == opp:
                         continue
-                    h2h_res = _get_pair_result(category_stats[team], category_stats[opp], categories)
+                    h2h_res = _get_pair_result(category_stats[team], category_stats[opp], categories, tiebreaker)
                     h2h_comparisons[team][opp][h2h_res] += 1
 
         _add_stats_sum(all_scores)
@@ -391,7 +400,7 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
     overall_tables = {}
     if len(leagues) > 1:
         overall_tables['Past matchup overall stats'] = _export_last_matchup_stats(is_each_category_type,
-            overall_pairs_last_matchup, overall_scores_last_matchup, overall_minutes_last_matchup, categories, True, display_draw)
+            overall_pairs_last_matchup, overall_scores_last_matchup, overall_minutes_last_matchup, categories, True, display_draw, tiebreaker)
 
     season_str = f'{season_start_year}-{str(season_start_year + 1)[-2:]}'
     utils.export_tables_to_html(sport, leagues_tables, overall_tables,
