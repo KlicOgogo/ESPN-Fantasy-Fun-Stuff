@@ -22,7 +22,8 @@ def _add_stats_sum(stats_dict, split=True):
         stats_dict[team].append('-'.join(map(_format_value, stats_sum)))
 
 
-def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_scores, minutes, categories, is_overall, display_draw, tiebreaker):
+def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_scores, 
+        minutes, categories, is_overall, display_draw, tiebreaker):
     category_stats = _get_category_stats(matchup_pairs)
     opp_dict = utils.get_opponent_dict(matchup_pairs)
     exp_score, exp_result = _get_expected_score_and_result(category_stats, opp_dict, categories, tiebreaker)
@@ -46,7 +47,9 @@ def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_sco
     full_df = full_df.merge(score_df, how='outer', left_index=True, right_index=True)
     if is_each_category_type:
         slice_end = 3 if display_draw else 2
-        exp_score_str = {team: '-'.join(map(lambda x: _format_value(np.round(x, 1)), exp_score[team][:slice_end])) for team in exp_score}
+        exp_score_str = {}
+        for team in exp_score:
+            exp_score_str[team] = '-'.join(map(lambda x: _format_value(np.round(x, 1)), exp_score[team][:slice_end]))
         exp_score_df = pd.DataFrame(list(exp_score_str.values()), index=exp_score_str.keys(), columns=['ExpScore'])
         full_df = full_df.merge(exp_score_df, how='outer', left_index=True, right_index=True)
     else:
@@ -97,8 +100,9 @@ def _get_best_and_worst_values(table, col):
                 raise Exception('Unexpected value format.')
         max_val = max(scores_for_sort)
         min_val = min(scores_for_sort)
-        format_score_lambda = lambda x: '-'.join(map(_format_value, [x[i] for i in [0, 2, 1]] if len(x) == 3 else [x[0], -x[1]]))
-        return format_score_lambda(max_val), format_score_lambda(min_val)
+        score_normalizer = lambda x: [x[i] for i in [0, 2, 1]] if len(x) == 3 else [x[0], -x[1]]
+        score_formatter = lambda x: '-'.join(map(_format_value, score_normalizer(x)))
+        return score_formatter(max_val), score_formatter(min_val)
 
 
 def _get_best_and_worst_rows(table):
@@ -290,7 +294,7 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
         display_draw = len(all_pairs[-1][0][0][1].split('-')) == 3
         matchup_pairs, categories = _get_matchup_pairs(soups[-1], league_name, league)
         tables_dict['Past matchup stats'] = _export_last_matchup_stats(is_each_category_type, matchup_pairs,
-                                                                       all_pairs[-1], minutes, categories, False, display_draw,  tiebreaker)
+            all_pairs[-1], minutes, categories, False, display_draw,  tiebreaker)
         overall_pairs_last_matchup.extend(matchup_pairs)
         overall_scores_last_matchup.extend(all_pairs[-1])
 
@@ -307,7 +311,8 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
                 all_scores[sc[0][0]].append(sc[0][1])
                 all_scores[sc[1][0]].append(sc[1][1])
             for team in opp_dict:
-                pair_result = _get_pair_result(category_stats[team], category_stats[opp_dict[team]], categories, tiebreaker)
+                pair_result = _get_pair_result(category_stats[team], category_stats[opp_dict[team]], 
+                                               categories, tiebreaker)
                 all_pair_results[team].append(pair_result)
             for team in exp_score:
                 all_exp_scores[team].append(exp_score[team])
@@ -381,7 +386,8 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
                 all_exp_scores[team].append(real_scores)
                 all_exp_scores[team].extend(all_exp_scores[team][-1] - all_exp_scores[team][-2])
                 for i in range(len(all_exp_scores[team]) - 3):
-                    all_exp_scores[team][i] = '-'.join(map(lambda x: _format_value(np.round(x, 1)), all_exp_scores[team][i][:slice_end]))
+                    all_exp_scores[team][i] = '-'.join(map(lambda x: _format_value(np.round(x, 1)), 
+                                                            all_exp_scores[team][i][:slice_end]))
                 for i in range(len(all_exp_scores[team]) - 3, len(all_exp_scores[team])):
                     all_exp_scores[team][i] = np.round(all_exp_scores[team][i], 1)
 
@@ -400,7 +406,8 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
     overall_tables = {}
     if len(leagues) > 1:
         overall_tables['Past matchup overall stats'] = _export_last_matchup_stats(is_each_category_type,
-            overall_pairs_last_matchup, overall_scores_last_matchup, overall_minutes_last_matchup, categories, True, display_draw, tiebreaker)
+            overall_pairs_last_matchup, overall_scores_last_matchup, overall_minutes_last_matchup, 
+            categories, True, display_draw, tiebreaker)
 
     season_str = f'{season_start_year}-{str(season_start_year + 1)[-2:]}'
     utils.export_tables_to_html(sport, leagues_tables, overall_tables,
