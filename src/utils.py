@@ -78,8 +78,7 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season
 
 
 def find_proper_matchup(schedule):
-    yesterday = datetime.datetime.today().date() - datetime.timedelta(days=6)
-    # yesterday = datetime.date(year=2019, month=10, day=6) + datetime.timedelta(days=56)
+    yesterday = datetime.datetime.today().date() - datetime.timedelta(days=1)
     for matchup_number, matchup_date in schedule.items():
         if yesterday != matchup_date[1]:
             continue
