@@ -7,6 +7,7 @@ import re
 import numpy as np
 import pandas as pd
 
+import html_utils
 import styling
 import utils
 
@@ -258,7 +259,7 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
     else:
         raise Exception('Wrong config: leagues tuple must contain 1 or 2 elements.')
     leagues_tables = defaultdict(dict)
-    overall_minutes_last_matchup = None if test_mode_on else {}
+    overall_minutes_last_matchup = None if test_mode_on or sport.lower() != 'basketball' else {}
     overall_pairs_last_matchup = []
     overall_scores_last_matchup = []
     for league in leagues:
@@ -271,22 +272,22 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
 
         today = datetime.datetime.today().date()
         season_start_year = today.year if today.month > 6 else today.year - 1
-        schedule = utils.get_league_schedule(league, sport, season_start_year, sleep_timeout)
+        schedule = html_utils.get_league_schedule(league, sport, season_start_year, sleep_timeout)
         real_matchup = utils.find_proper_matchup(schedule)
         if real_matchup == -1 and not test_mode_on:
             return
         matchup = 1 if test_mode_on else real_matchup
 
-        all_pairs, soups, league_name = utils.get_scoreboard_stats(league, sport, matchup, sleep_timeout, 'categories')
+        all_pairs, soups, league_name = html_utils.get_scoreboard_stats(league, sport, matchup, sleep_timeout)
         is_each_category_type = _is_each_category_type(soups[-1], real_matchup)
         minutes = None
-        if not test_mode_on:
+        if not test_mode_on and sport.lower() == 'basketball':
             teams = []
             for pair in all_pairs[-1]:
                 teams.append((pair[0][0], pair[1][0]))
             scoring_period_id = (schedule[real_matchup][0] - schedule[1][0]).days + 1
-            minutes = utils.get_minutes(league, matchup, teams,
-                                        scoring_period_id, season_start_year + 1, sleep_timeout)
+            minutes = html_utils.get_minutes(league, matchup, teams,
+                                             scoring_period_id, season_start_year + 1, sleep_timeout)
             overall_minutes_last_matchup.update(minutes)
 
         tables_dict = leagues_tables[league_name]

@@ -6,6 +6,7 @@ from operator import itemgetter
 import pandas as pd
 import numpy as np
 
+import html_utils
 import styling
 import utils
 
@@ -15,7 +16,7 @@ def _export_league_stats(league, sport, test_mode_on, sleep_timeout):
     scores = defaultdict(list)
     today = datetime.datetime.today().date()
     season_start_year = today.year if today.month > 6 else today.year - 1
-    schedule = utils.get_league_schedule(league, sport, season_start_year, sleep_timeout)
+    schedule = html_utils.get_league_schedule(league, sport, season_start_year, sleep_timeout)
     matchup = 1 if test_mode_on else utils.find_proper_matchup(schedule)
     if matchup == -1:
         return {}, {}, '', matchup, {}
@@ -25,7 +26,7 @@ def _export_league_stats(league, sport, test_mode_on, sleep_timeout):
     places = defaultdict(list)
     opp_places = defaultdict(list)
     h2h_comparisons = defaultdict(lambda: defaultdict(Counter))
-    all_pairs, _, name = utils.get_scoreboard_stats(league, sport, matchup, sleep_timeout)
+    all_pairs, _, name = html_utils.get_scoreboard_stats(league, sport, matchup, sleep_timeout)
     for matchup_results in all_pairs:
         for sc in matchup_results:
             scores[sc[0][0]].append(sc[0][1])
