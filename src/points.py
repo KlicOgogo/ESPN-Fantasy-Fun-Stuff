@@ -86,7 +86,7 @@ def _render_luck_table(luck, matchup, opp_flag):
         luck_ext[team].append(np.sum(luck[team]))
 
     df_teams = pd.DataFrame(list(map(itemgetter(0), luck_ext.keys())), index=luck_ext.keys(), columns=['Team'])
-    matchups = [w for w in range(1, matchup + 1)]
+    matchups = np.arange(1, matchup + 1)
     cols = [*matchups, '&#128532;', '&#128526;', 'SUM']
     df_luck = pd.DataFrame(list(luck_ext.values()), index=luck_ext.keys(), columns=cols)
     df_luck = df_teams.merge(df_luck, how='outer', left_index=True, right_index=True)
@@ -110,7 +110,7 @@ def _render_places_table(places, matchup, opp_flag, is_overall=False):
         
     df_teams = pd.DataFrame(list(map(itemgetter(2, 0) if is_overall else itemgetter(0), places_ext.keys())),
                             index=places_ext.keys(), columns=['League', 'Team'] if is_overall else ['Team'])
-    matchups = [w for w in range(1, matchup + 1)]
+    matchups = np.arange(1, matchup + 1)
     cols = [*matchups, '&#128532;', '&#128526;', 'SUM']
     df_places = pd.DataFrame(list(places_ext.values()), index=places_ext.keys(), columns=cols)
     df_places = df_teams.merge(df_places, how='outer', left_index=True, right_index=True)

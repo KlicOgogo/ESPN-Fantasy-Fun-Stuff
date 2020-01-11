@@ -340,7 +340,7 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
             team_power_normalized = team_power / np.sum(total_comparison_stat)
             comparisons_data_dict[team].append(np.round(team_power_normalized, 2))
 
-        matchups = [m for m in range(1, matchup + 1)]
+        matchups = np.arange(1, matchup + 1)
         teams_df = pd.DataFrame(data=list(map(lambda x: x[0], all_scores.keys())),
                                 index=all_scores.keys(), columns=['Team'])
 
@@ -399,7 +399,7 @@ def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False,
             df_exp = df_exp.append(best_and_worst_df, sort=False)
             df_styler = df_exp.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
                 applymap(styling.color_value, subset=pd.IndexSlice[list(all_exp_scores.keys()), ['WD']]).\
-                apply(styling.color_extremums, subset=pd.IndexSlice[df_exp.index, matchups + ['Total', 'ESPN']])
+                apply(styling.color_extremums, subset=pd.IndexSlice[df_exp.index, [*matchups, 'Total', 'ESPN']])
             tables_dict['Expected category win stats'] = df_styler.render()
 
     overall_tables = {}
