@@ -68,9 +68,11 @@ def _export_last_matchup_stats(is_each_category_type, matchup_pairs, matchup_sco
     best_and_worst_df = pd.DataFrame(list(_get_best_and_worst_rows(full_df)), index=['Best', 'Worst'])
     final_df = full_df.append(best_and_worst_df, sort=False)
 
-    best_and_worst_cols = categories + ['Score', 'MIN']
+    best_and_worst_cols = categories + ['Score']
     if is_each_category_type:
-        best_and_worst_cols = categories + ['Score', 'ExpScore', 'MIN']
+        best_and_worst_cols.append('ExpScore')
+    if minutes is not None:
+        best_and_worst_cols.append('MIN')
 
     styler = final_df.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
         apply(styling.color_extremums, subset=pd.IndexSlice[final_df.index, best_and_worst_cols]).\
