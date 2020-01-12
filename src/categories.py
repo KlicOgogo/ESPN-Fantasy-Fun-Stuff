@@ -229,13 +229,7 @@ def _is_each_category_type(scoreboard_html, matchup):
     return np.sum(record_sums == matchup) == 0
 
 
-def export_matchup_stats(leagues_tuple, sport, github_login, test_mode_on=False, sleep_timeout=10):
-    if len(leagues_tuple) == 1:
-        leagues, tiebreaker = leagues_tuple[0], 'NO'
-    elif len(leagues_tuple) == 2:
-        leagues, tiebreaker = leagues_tuple
-    else:
-        raise Exception('Wrong config: leagues tuple must contain 1 or 2 elements.')
+def export_matchup_stats(leagues, sport, tiebreaker, github_login, test_mode_on=False, sleep_timeout=10):
     leagues_tables = defaultdict(dict)
     last_matchup_minutes = None if test_mode_on or sport.lower() != 'basketball' else {}
     last_matchup_pairs = []
