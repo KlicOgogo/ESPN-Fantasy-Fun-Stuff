@@ -16,13 +16,13 @@ CATEGORY_COLS = {'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS'}
 
 
 def _export_past_matchup_stats(each_category_type_flag, categories, matchup_pairs, matchup_scores,
-        minutes, tiebreaker, is_overall_flag, display_draw_flag):
+        minutes, tiebreaker, is_overall, display_draw_flag):
     category_stats = _get_category_stats(matchup_pairs)
     opp_dict = utils.get_opponent_dict(matchup_pairs)
     exp_score, exp_result = _get_expected_score_and_result(category_stats, opp_dict, categories, tiebreaker)
 
-    df_teams = pd.DataFrame(list(map(itemgetter(2, 0) if is_overall_flag else itemgetter(0), category_stats.keys())),
-                            index=category_stats.keys(), columns=['League', 'Team'] if is_overall_flag else ['Team'])
+    df_teams = pd.DataFrame(list(map(itemgetter(2, 0) if is_overall else itemgetter(0), category_stats.keys())),
+                            index=category_stats.keys(), columns=['League', 'Team'] if is_overall else ['Team'])
     df_stats = pd.DataFrame(list(category_stats.values()), index=category_stats.keys(), columns=categories)
     if minutes is None:
         df = df_teams.merge(df_stats, how='outer', left_index=True, right_index=True)

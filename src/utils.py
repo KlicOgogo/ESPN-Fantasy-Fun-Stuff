@@ -127,16 +127,16 @@ def render_h2h_table(h2h_comparisons):
                 comp = h2h_comparisons[team][opp]
                 h2h_data[team].append('-'.join(map(str, [comp['W'], comp['L'], comp['D']])))
 
-    df_h2h_data = []
+    df_data = []
     for team in h2h_order:
         team_data = []
         team_data.append(team[0])
         team_data.extend(h2h_data[team])
         team_data.extend(h2h_sums[team])
         team_data.append(np.round(h2h_powers[team][0] / np.sum(h2h_sums[team]), 2))
-        df_h2h_data.append(team_data)
+        df_data.append(team_data)
 
-    df = pd.DataFrame(df_h2h_data, columns=['Team', *np.arange(1, len(df_h2h_data)+1), 'W', 'L', 'D', '%'])
+    df = pd.DataFrame(df_data, columns=['Team', *np.arange(1, len(df_data)+1), 'W', 'L', 'D', '%'])
     df = add_position_column(df)
     styler = df.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
         applymap(color_percentage, subset=['%'])
