@@ -10,7 +10,13 @@ from utils import REPO_ROOT_DIR
 
 def _export_stats(sport, config, github_login, timeout, test_mode_on=False):
     for cat_leagues in config['categories']:
-        categories.export_matchup_stats(cat_leagues, sport, github_login, test_mode_on, timeout)
+        if len(cat_leagues) == 1:
+            leagues, tiebreaker = cat_leagues[0], 'NO'
+        elif len(cat_leagues) == 2:
+            leagues, tiebreaker = cat_leagues
+        else:
+            raise Exception('Wrong config: leagues tuple must contain 1 or 2 elements.')
+        categories.export_matchup_stats(leagues, sport, tiebreaker, github_login, test_mode_on, timeout)
     for points_leagues in config['points']:
         points.export_matchup_stats(points_leagues, sport, github_login, test_mode_on, timeout)
 
