@@ -23,42 +23,42 @@ def _export_past_matchup_stats(each_category_type_flag, categories, matchup_pair
 
     df_teams = pd.DataFrame(list(map(itemgetter(2, 0) if is_overall_flag else itemgetter(0), category_stats.keys())),
                             index=category_stats.keys(), columns=['League', 'Team'] if is_overall_flag else ['Team'])
-    stats_df = pd.DataFrame(list(category_stats.values()), index=category_stats.keys(), columns=categories)
+    df_stats = pd.DataFrame(list(category_stats.values()), index=category_stats.keys(), columns=categories)
     if minutes is None:
-        full_df = df_teams.merge(stats_df, how='outer', left_index=True, right_index=True)
+        df = df_teams.merge(df_stats, how='outer', left_index=True, right_index=True)
     else:
-        minutes_df = pd.DataFrame(list(minutes.values()), index=minutes.keys(), columns=['MIN'])
-        full_df = df_teams.merge(minutes_df, how='outer', left_index=True, right_index=True)
-        full_df = full_df.merge(stats_df, how='outer', left_index=True, right_index=True)
+        df_minutes = pd.DataFrame(list(minutes.values()), index=minutes.keys(), columns=['MIN'])
+        df = df_teams.merge(df_minutes, how='outer', left_index=True, right_index=True)
+        df = df.merge(df_stats, how='outer', left_index=True, right_index=True)
     matchup_scores_dict = {}
     for s in matchup_scores:
         matchup_scores_dict.update(s)
-    score_df = pd.DataFrame(list(matchup_scores_dict.values()), index=matchup_scores_dict.keys(), columns=['Score'])
-    full_df = full_df.merge(score_df, how='outer', left_index=True, right_index=True)
+    df_score = pd.DataFrame(list(matchup_scores_dict.values()), index=matchup_scores_dict.keys(), columns=['Score'])
+    df = df.merge(df_score, how='outer', left_index=True, right_index=True)
     if each_category_type_flag:
         slice_end = 3 if display_draw_flag else 2
         exp_score_str = {}
         for team in exp_score:
             exp_score_str[team] = '-'.join(map(lambda x: _format_value(np.round(x, 1)), exp_score[team][:slice_end]))
         exp_score_df = pd.DataFrame(list(exp_score_str.values()), index=exp_score_str.keys(), columns=['ExpScore'])
-        full_df = full_df.merge(exp_score_df, how='outer', left_index=True, right_index=True)
+        df = df.merge(exp_score_df, how='outer', left_index=True, right_index=True)
     else:
         comparison_stats = _get_comparison_stats(category_stats, categories, tiebreaker)
         calc_power_lambda = lambda x, y: np.round((x[0] + x[2] * 0.5) / y, 2)
         n_opponents = len(comparison_stats) - 1
         team_power = {team: calc_power_lambda(comparison_stats[team], n_opponents) for team in comparison_stats}
-        team_power_df = pd.DataFrame(list(team_power.values()), index=team_power.keys(), columns=['TP'])
-        full_df = full_df.merge(team_power_df, how='outer', left_index=True, right_index=True)
-        exp_res_df = pd.DataFrame(list(exp_result.values()), index=exp_result.keys(), columns=['ER'])
-        full_df = full_df.merge(exp_res_df, how='outer', left_index=True, right_index=True)
+        df_tp = pd.DataFrame(list(team_power.values()), index=team_power.keys(), columns=['TP'])
+        df = df.merge(df_tp, how='outer', left_index=True, right_index=True)
+        df_exp = pd.DataFrame(list(exp_result.values()), index=exp_result.keys(), columns=['ER'])
+        df = df.merge(df_exp, how='outer', left_index=True, right_index=True)
     places_data = _get_places_data(category_stats, categories)
     places_cols = [f'{col} ' for col in categories]
-    places_df = pd.DataFrame(list(places_data.values()), index=places_data.keys(), columns=places_cols + ['SUM'])
-    full_df = full_df.merge(places_df, how='outer', left_index=True, right_index=True)
-    full_df = full_df.iloc[np.lexsort((-full_df['PTS'], full_df['SUM']))]
-    full_df = utils.add_position_column(full_df)
-    df_extremums = pd.DataFrame(list(_get_best_and_worst_rows(full_df)), index=['Best', 'Worst'])
-    final_df = full_df.append(df_extremums, sort=False)
+    df_places = pd.DataFrame(list(places_data.values()), index=places_data.keys(), columns=places_cols + ['SUM'])
+    df = df.merge(df_places, how='outer', left_index=True, right_index=True)
+    df = df.iloc[np.lexsort((-df['PTS'], df['SUM']))]
+    df = utils.add_position_column(df)
+    df_extremums = pd.DataFrame(list(_get_best_and_worst_rows(df)), index=['Best', 'Worst'])
+    df = df.append(df_extremums, sort=False)
 
     extremum_cols = categories + ['Score']
     if each_category_type_flag:
@@ -66,12 +66,12 @@ def _export_past_matchup_stats(each_category_type_flag, categories, matchup_pair
     if minutes is not None:
         extremum_cols.append('MIN')
 
-    styler = final_df.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
-        apply(styling.color_extremums, subset=pd.IndexSlice[final_df.index, extremum_cols]).\
-        apply(styling.color_place_column, subset=pd.IndexSlice[full_df.index, places_cols])
+    styler = df.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
+        apply(styling.color_extremums, subset=pd.IndexSlice[df.index, extremum_cols]).\
+        apply(styling.color_place_column, subset=pd.IndexSlice[df_teams.index, places_cols])
     if not each_category_type_flag:
-        styler = styler.applymap(styling.color_pair_result, subset=pd.IndexSlice[full_df.index, ['ER']]).\
-            applymap(styling.color_percentage, subset=pd.IndexSlice[full_df.index, ['TP']])
+        styler = styler.applymap(styling.color_pair_result, subset=pd.IndexSlice[df_teams.index, ['ER']]).\
+            applymap(styling.color_percentage, subset=pd.IndexSlice[df_teams.index, ['TP']])
     return styler.render()
 
 
