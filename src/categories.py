@@ -15,6 +15,10 @@ import utils
 CATEGORY_COLS = {'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS'}
 
 
+def _calc_power_coeff(x):
+    return x[0] + x[2] * 0.5
+
+
 def _export_past_matchup_stats(each_category_type_flag, categories, matchup_pairs, matchup_scores,
         minutes, tiebreaker, is_overall, display_draw_flag):
     category_stats = _get_category_stats(matchup_pairs)
@@ -43,10 +47,9 @@ def _export_past_matchup_stats(each_category_type_flag, categories, matchup_pair
         exp_score_df = pd.DataFrame(list(exp_score_str.values()), index=exp_score_str.keys(), columns=['ExpScore'])
         df = df.merge(exp_score_df, how='outer', left_index=True, right_index=True)
     else:
-        comparison_stats = _get_comparison_stats(category_stats, categories, tiebreaker)
-        calc_power_lambda = lambda x, y: np.round((x[0] + x[2] * 0.5) / y, 2)
-        n_opponents = len(comparison_stats) - 1
-        team_power = {team: calc_power_lambda(comparison_stats[team], n_opponents) for team in comparison_stats}
+        comparisons = _get_comparison_stats(category_stats, categories, tiebreaker)
+        n_opponents = len(comparisons) - 1
+        team_power = {team: np.round(_calc_power_coeff(comparisons[team]) / n_opponents, 2) for team in comparisons}
         df_tp = pd.DataFrame(list(team_power.values()), index=team_power.keys(), columns=['TP'])
         df = df.merge(df_tp, how='outer', left_index=True, right_index=True)
         df_exp = pd.DataFrame(list(exp_result.values()), index=exp_result.keys(), columns=['ER'])
@@ -88,14 +91,14 @@ def _get_best_and_worst_values(table, col):
         for sc in table[col]:
             sc_values = list(map(float, sc.split('-')))
             if len(sc_values) == 3:
-                scores_for_sort.append([sc_values[i] for i in [0, 2, 1]])
+                scores_for_sort.append([_calc_power_coeff(sc_values), *[sc_values[i] for i in [0, 2, 1]]])
             elif len(sc_values) == 2:
-                scores_for_sort.append([sc_values[0], -sc_values[1]])
+                scores_for_sort.append([_calc_power_coeff([*sc_values, -np.sum(sc_values)]), *sc_values])
             else:
                 raise Exception('Unexpected value format.')
         max_val = max(scores_for_sort)
         min_val = min(scores_for_sort)
-        score_normalizer = lambda x: [x[i] for i in [0, 2, 1]] if len(x) == 3 else [x[0], -x[1]]
+        score_normalizer = lambda x: [x[i] for i in [1, 3, 2]] if len(x) == 4 else x[1:]
         score_formatter = lambda x: '-'.join(map(_format_value, score_normalizer(x)))
         return score_formatter(max_val), score_formatter(min_val)
 
@@ -267,7 +270,7 @@ def _is_each_category_type(scoreboard_html, matchup):
     for m in matchups_html:
         opponents = m.findAll('li', 'ScoreboardScoreCell__Item')
         for o in opponents:
-            record, place = o.findAll('span', 'ScoreboardScoreCell__Record')[0].text.split(',')
+            record, _ = o.findAll('span', 'ScoreboardScoreCell__Record')[0].text.split(',')
             records.append(record.strip())
     record_sums = np.array(list(map(lambda x: np.sum(list(map(int, x.split('-')))), records)))
     return np.sum(record_sums == matchup) == 0
