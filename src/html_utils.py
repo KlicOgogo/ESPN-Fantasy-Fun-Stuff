@@ -33,11 +33,14 @@ def _get_matchup_date(matchup_text, season_start_year):
 
 
 def _get_matchup_number(matchup_text):
-    return int(re.findall(r'Matchup (\d+)', matchup_text)[0])
+    matches = re.findall(r'Matchup (\d+)', matchup_text)
+    return int(matches[0]) if len(matches) == 1 else None
 
 
 def _get_matchup_schedule(matchup_text, season_start_year):
     matchup_number = _get_matchup_number(matchup_text)
+    if matchup_number is None:
+        return []
     matchup_date = _get_matchup_date(matchup_text, season_start_year)
     return [(matchup_number, matchup_date)]
 
