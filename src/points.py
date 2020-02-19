@@ -152,15 +152,24 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
         overall_tables['Overall places'] = _render_places_table(overall_places, np.arange(1, matchup + 1), False, True)
 
     n_top = int(len(overall_scores) / len(leagues))
-    top_common_cols = ['Team', 'Score', 'League']
-    last_matchup_scores = [(team[0], overall_scores[team][-1], team[2]) for team in overall_scores]
+    top_common_cols = ['Team', 'Score', 'League'] if len(leagues) > 1 else ['Team', 'Score']
+    if len(leagues) == 1:
+        last_matchup_scores = [(team[0], overall_scores[team][-1]) for team in overall_scores]
+    else:
+        last_matchup_scores = [(team[0], overall_scores[team][-1], team[2]) for team in overall_scores]
     overall_tables['Best scores this matchup'] = _render_top(last_matchup_scores, n_top, top_common_cols)
     each_matchup_scores = []
     for team in overall_scores:
-        team_scores = [(team[0], score, team[2], index + 1) for index, score in enumerate(overall_scores[team])]
+        if len(leagues) == 1:
+            team_scores = [(team[0], score, index + 1) for index, score in enumerate(overall_scores[team])]
+        else:
+            team_scores = [(team[0], score, team[2], index + 1) for index, score in enumerate(overall_scores[team])]
         each_matchup_scores.extend(team_scores)
     overall_tables['Best scores this season'] = _render_top(each_matchup_scores, n_top, top_common_cols + ['Matchup'])
-    totals = [(team[0], np.sum(scores), team[2], scores[-1]) for team, scores in overall_scores.items()]
+    if len(leagues) == 1:
+        totals = [(team[0], np.sum(scores), scores[-1]) for team, scores in overall_scores.items()]
+    else:
+        totals = [(team[0], np.sum(scores), team[2], scores[-1]) for team, scores in overall_scores.items()]
     overall_tables['Best total scores this season'] = _render_top(totals, n_top, top_common_cols + ['Last matchup'])
 
     today = datetime.datetime.today().date()
