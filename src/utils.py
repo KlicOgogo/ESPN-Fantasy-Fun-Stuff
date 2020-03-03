@@ -138,6 +138,6 @@ def render_h2h_table(h2h_comparisons):
 
     df = pd.DataFrame(df_data, columns=['Team', *np.arange(1, len(df_data)+1), 'W', 'L', 'D', '%'])
     df = add_position_column(df)
-    styler = df.style.set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
+    styler = df.style.format({'%': '{:g}'}).set_table_styles(STYLES).set_table_attributes(ATTRS).hide_index().\
         applymap(color_percentage, subset=['%'])
     return styler.render()

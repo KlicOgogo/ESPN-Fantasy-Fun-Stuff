@@ -3,10 +3,10 @@ import re
 import time
 
 from bs4 import BeautifulSoup
-from selenium.webdriver import Chrome
+from selenium.webdriver import Firefox
 
 
-_BROWSER = Chrome()
+_BROWSER = Firefox()
 
 
 def _get_league_name(scoreboard_html):

@@ -69,7 +69,10 @@ def _export_past_matchup_stats(each_category_type_flag, categories, matchup_pair
     if minutes is not None:
         extremum_cols.append('MIN')
 
-    styler = df.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
+    num_cols = set(df.columns) - {'Team', 'League', 'Score', 'ER', 'ExpScore'}
+    styler = df.style.format('{:g}', subset=pd.IndexSlice[df_teams.index, num_cols - {*categories, 'MIN'}]).\
+        format('{:g}', subset=pd.IndexSlice[df.index, categories]).\
+        set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
         apply(styling.color_extremums, subset=pd.IndexSlice[df.index, extremum_cols]).\
         apply(styling.color_place_column, subset=pd.IndexSlice[df_teams.index, places_cols])
     if not each_category_type_flag:
@@ -121,7 +124,7 @@ def _get_category_stats(results):
     category_stats = {}
     for pair in results:
         for team, total_score in pair:
-            category_stats[team] = [score if score % 1.0 > utils.ZERO else int(score) for _, score in total_score]
+            category_stats[team] = [score for _, score in total_score]
     return category_stats
 
 
@@ -299,7 +302,8 @@ def _render_category_win_stats_table(category_stats, matchup, n_categories, disp
     df = utils.add_position_column(df)
     df_extremums = pd.DataFrame(list(_get_best_and_worst_rows(df)), index=['Best', 'Worst'])
     df = df.append(df_extremums, sort=False)
-    styler = df.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
+    styler = df.style.format('{:g}', subset=pd.IndexSlice[list(expected_category_stats.keys()), ['DD', 'WD', 'LD']]).\
+        set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
         applymap(styling.color_value, subset=pd.IndexSlice[list(expected_category_stats.keys()), ['WD']]).\
         apply(styling.color_extremums, subset=pd.IndexSlice[df.index, [*matchups, 'Total', 'ESPN']])
     return styler.render()
@@ -321,7 +325,8 @@ def _render_matchup_comparisons_table(comparisons, matchups):
     df = utils.add_position_column(df)
     df_extremums = pd.DataFrame(list(_get_best_and_worst_rows(df)), index=['Best', 'Worst'])
     df = df.append(df_extremums, sort=False)
-    styler = df.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
+    styler = df.style.format('{:g}', subset=pd.IndexSlice[list(df_data.keys()), ['%']]).\
+        set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
         apply(styling.color_extremums, subset=matchups).\
         applymap(styling.color_percentage, subset=pd.IndexSlice[list(df_data.keys()), ['%']])
     return styler.render()

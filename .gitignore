@@ -118,3 +118,4 @@ dmypy.json
 
 # my
 .config
+geckodriver.log
