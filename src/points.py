@@ -32,17 +32,16 @@ def _export_league_stats(league, sport, test_mode_on, sleep_timeout):
             scores[sc[0][0]].append(sc[0][1])
             scores[sc[1][0]].append(sc[1][1])
 
-        format_lambda = lambda x: x if x % 1.0 > utils.ZERO else int(x)
         matchup_scores = sorted([s for pair in matchup_results for s in pair], key=itemgetter(1), reverse=True)
         matchup_places = utils.get_places(matchup_scores)
         opp_dict = utils.get_opponent_dict(matchup_results)
         for team in matchup_places:
-            places[team].append(format_lambda(matchup_places[team]))
-            opp_places[team].append(format_lambda(matchup_places[opp_dict[team]]))
+            places[team].append(matchup_places[team])
+            opp_places[team].append(matchup_places[opp_dict[team]])
         matchup_luck = _get_luck(matchup_results, matchup_places)
         for team in matchup_luck:
-            luck[team].append(format_lambda(matchup_luck[team]))
-            opp_luck[team].append(format_lambda(matchup_luck[opp_dict[team]]))
+            luck[team].append(matchup_luck[team])
+            opp_luck[team].append(matchup_luck[opp_dict[team]])
             
         for team, score in matchup_scores:
             for opp, opp_score in matchup_scores:
@@ -95,7 +94,8 @@ def _render_luck_table(luck, matchups, opp_flag):
     sort_indexes = np.lexsort([df[col] * coeff for col, coeff in zip(sort_cols, [1.0, -1.0, 1.0])])
     df = df.iloc[sort_indexes]
     df = utils.add_position_column(df)
-    styler = df.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
+    styler = df.style.format({c: '{:g}' for c in set(cols) - {'Team'}}).\
+        set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
         applymap(styling.color_opponent_value if opp_flag else styling.color_value, subset=matchups)
     return styler.render()
 
@@ -118,7 +118,8 @@ def _render_places_table(places, matchups, opp_flag, is_overall=False):
     sort_indexes = np.lexsort([df[col] * coeff for col, coeff in zip(sort_cols, [1.0, -1.0, 1.0])])
     df = df.iloc[sort_indexes]
     df = utils.add_position_column(df)
-    styler = df.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
+    styler = df.style.format({c: '{:g}' for c in set(cols) - {'Team'}}).\
+        set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
         apply(styling.color_opponent_place_column if opp_flag else styling.color_place_column, subset=matchups)
     return styler.render()
 
@@ -127,7 +128,8 @@ def _render_top(data, n_top, cols):
     df_data = sorted(data, key=itemgetter(1), reverse=True)[:n_top]
     df = pd.DataFrame(df_data, index=np.arange(1, 1 + n_top), columns=cols)
     df = utils.add_position_column(df)
-    return df.style.set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().render()
+    return df.style.format({c: '{:g}' for c in set(cols) - {'Team', 'League'}}).\
+        set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().render()
 
 
 def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep_timeout=10):
