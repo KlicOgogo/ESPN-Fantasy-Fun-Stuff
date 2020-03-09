@@ -174,6 +174,15 @@ def export_matchup_stats(leagues, sport, github_login, test_mode_on=False, sleep
         totals = [(team[0], np.sum(scores), team[2], scores[-1]) for team, scores in overall_scores.items()]
     overall_tables['Best total scores this season'] = _render_top(totals, n_top, top_common_cols + ['Last matchup'])
 
+    if len(leagues) > 1 and n_top > 8:
+        leagues_sums = defaultdict(list)
+        for team, scores in overall_scores.items():
+            leagues_sums[(team[2], team[3])].append(np.sum(scores))
+        leagues_sums_list = [(league[0], np.mean(sums), np.mean(list(sorted(sums, reverse=True))[:8])) for league, sums in leagues_sums.items()]
+        overall_tables['Leagues mean total scores this season'] = _render_top(leagues_sums_list,
+            len(leagues_sums_list), ['League', 'Score', 'Top 8 score'])
+
+
     today = datetime.datetime.today().date()
     season_start_year = today.year if today.month > 6 else today.year - 1
     season_str = f'{season_start_year}-{str(season_start_year + 1)[-2:]}'
