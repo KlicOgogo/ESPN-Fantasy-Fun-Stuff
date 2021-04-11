@@ -1,10 +1,13 @@
 import datetime
+import os
+from pathlib import Path
 import re
 import time
 
 from bs4 import BeautifulSoup
 from selenium.webdriver import Chrome
 
+from utils import REPO_ROOT_DIR
 
 _BROWSER = Chrome()
 
@@ -64,11 +67,19 @@ def _get_matchup_scores(scoreboard_html, league_id):
 
 
 def get_league_schedule(league_id, sport, season_start_year, sleep_timeout=10):
-    espn_scoreboard_url = f'https://fantasy.espn.com/{sport}/league/scoreboard'
-    url = f'{espn_scoreboard_url}?leagueId={league_id}&matchupPeriodId=1'
-    _BROWSER.get(url)
-    time.sleep(sleep_timeout)
-    scoreboard_html = BeautifulSoup(_BROWSER.page_source, features='html.parser')
+    today = datetime.datetime.today().date()
+    season_start_year = today.year if today.month > 6 else today.year - 1    
+    season_str = f'{season_start_year}-{str(season_start_year + 1)[-2:]}'
+    offline_schedule_path = os.path.join(REPO_ROOT_DIR, 'data', sport, str(league_id), season_str, 'matchup_1.html')
+    
+    if os.path.exists(offline_schedule_path):
+        scoreboard_html = BeautifulSoup(open(offline_schedule_path, 'r'), features='html.parser')
+    else:    
+        espn_scoreboard_url = f'https://fantasy.espn.com/{sport}/league/scoreboard'
+        url = f'{espn_scoreboard_url}?leagueId={league_id}&matchupPeriodId=1'
+        _BROWSER.get(url)
+        time.sleep(sleep_timeout)
+        scoreboard_html = BeautifulSoup(_BROWSER.page_source, features='html.parser')
     matchups_dropdown = scoreboard_html.findAll('div', {'class': 'dropdown'})[0]
     matchups_html_list = matchups_dropdown.findAll('option')
     schedule = {}
@@ -84,13 +95,17 @@ def get_minutes(league, matchup, teams, scoring_period_id, season_id, sleep_time
         url = (f'{espn_fantasy_url}/boxscore?leagueId={league}&matchupPeriodId={matchup}'
                f'&scoringPeriodId={scoring_period_id}'
                f'&seasonId={season_id}&teamId={pair[0][1]}&view=matchup')
-        _BROWSER.get(url)
-        time.sleep(sleep_timeout)
-        html_soup = BeautifulSoup(_BROWSER.page_source, features='html.parser')
-        tables_html = html_soup.findAll('div', {'class': 'players-table__sortable'})
-        for index, table_html in enumerate(tables_html):
-            minutes = int(table_html.findAll('tr')[-1].findAll('td')[0].text)
-            minutes_dict[pair[index]] = minutes
+        exit = False
+        while not exit:
+            _BROWSER.get(url)
+            time.sleep(sleep_timeout)
+            html_soup = BeautifulSoup(_BROWSER.page_source, features='html.parser')
+            tables_html = html_soup.findAll('div', {'class': 'players-table__sortable'})
+            for player, table_html in zip(pair, tables_html):
+                minutes = int(table_html.findAll('tr')[-1].findAll('td')[0].findAll('div')[0].text)
+                if minutes == minutes:
+                    minutes_dict[player] = minutes
+                    exit = True
     return minutes_dict
 
 
@@ -99,10 +114,23 @@ def get_scoreboard_stats(league_id, sport, matchup, sleep_timeout=10):
     urls = [f'{espn_scoreboard_url}?leagueId={league_id}&matchupPeriodId={m}' for m in range(1, matchup + 1)]
     all_matchups = []
     soups = []
-    for u in urls:
-        _BROWSER.get(u)
-        time.sleep(sleep_timeout)
-        html_soup = BeautifulSoup(_BROWSER.page_source, features='html.parser')
+    today = datetime.datetime.today().date()
+    season_start_year = today.year if today.month > 6 else today.year - 1    
+    season_str = f'{season_start_year}-{str(season_start_year + 1)[-2:]}'
+    
+    offline_html_dir = os.path.join(REPO_ROOT_DIR, 'data', sport, str(league_id), season_str)
+    Path(offline_html_dir).mkdir(parents=True, exist_ok=True)
+
+    for index, u in enumerate(urls):
+        matchup_html_path = os.path.join(offline_html_dir, f'matchup_{index + 1}.html')
+        if not os.path.exists(matchup_html_path) or index + 4 > matchup or league_id == 33730:
+            _BROWSER.get(u)
+            time.sleep(sleep_timeout)
+            html_soup = BeautifulSoup(_BROWSER.page_source, features='html.parser')
+            with open(matchup_html_path, 'w') as html_fp:
+                html_fp.write(str(html_soup))
+        else:
+            html_soup = BeautifulSoup(open(matchup_html_path, 'r'), features='html.parser')
         soups.append(html_soup)
         all_matchups.append(_get_matchup_scores(html_soup, league_id))
     return all_matchups, soups, _get_league_name(html_soup)
