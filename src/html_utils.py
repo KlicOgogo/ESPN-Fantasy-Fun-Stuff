@@ -73,7 +73,7 @@ def get_league_schedule(league_id, sport, season_start_year, sleep_timeout=10):
     offline_schedule_path = os.path.join(REPO_ROOT_DIR, 'data', sport, str(league_id), season_str, 'matchup_1.html')
     
     if os.path.exists(offline_schedule_path):
-        scoreboard_html = BeautifulSoup(open(offline_schedule_path, 'r'), features='html.parser')
+        scoreboard_html = BeautifulSoup(open(offline_schedule_path, 'r', encoding='utf-8'), features='html.parser')
     else:    
         espn_scoreboard_url = f'https://fantasy.espn.com/{sport}/league/scoreboard'
         url = f'{espn_scoreboard_url}?leagueId={league_id}&matchupPeriodId=1'
@@ -127,10 +127,10 @@ def get_scoreboard_stats(league_id, sport, matchup, sleep_timeout=10):
             _BROWSER.get(u)
             time.sleep(sleep_timeout)
             html_soup = BeautifulSoup(_BROWSER.page_source, features='html.parser')
-            with open(matchup_html_path, 'w') as html_fp:
+            with open(matchup_html_path, 'w', encoding='utf-8') as html_fp:
                 html_fp.write(str(html_soup))
         else:
-            html_soup = BeautifulSoup(open(matchup_html_path, 'r'), features='html.parser')
+            html_soup = BeautifulSoup(open(matchup_html_path, 'r', encoding='utf-8'), features='html.parser')
         soups.append(html_soup)
         all_matchups.append(_get_matchup_scores(html_soup, league_id))
     return all_matchups, soups, _get_league_name(html_soup)

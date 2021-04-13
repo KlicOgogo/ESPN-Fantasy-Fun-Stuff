@@ -69,11 +69,11 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season
         'previous_reports': previous_reports_data
     })
     index_path = os.path.join(report_dir, 'index.html')
-    with open(index_path, 'w') as html_fp:
+    with open(index_path, 'w', encoding='utf-8') as html_fp:
         html_fp.write(html_str)
     if not test_mode_on:
         matchup_path = os.path.join(report_dir, f'matchup_{matchup}.html')
-        with open(matchup_path, 'w') as html_fp:
+        with open(matchup_path, 'w', encoding='utf-8') as html_fp:
             html_fp.write(html_str)
 
 
