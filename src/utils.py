@@ -78,11 +78,10 @@ def export_tables_to_html(sport, leagues_tables, total_tables, league_id, season
 
 
 def find_proper_matchup(schedule):
-    yesterday = datetime.datetime.today().date() - datetime.timedelta(days=1)
+    four_days_ago = datetime.datetime.today().date() - datetime.timedelta(days=4)
     for matchup_number, matchup_date in schedule.items():
-        if yesterday != matchup_date[1]:
-            continue
-        return matchup_number
+        if matchup_date[0] <= four_days_ago <= matchup_date[1]:
+            return matchup_number
     return -1
 
 
