@@ -12,7 +12,13 @@ import styling
 import utils
 
 
-CATEGORY_COLS = {'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS'}
+HOCKEY_CATEGORY_COLS = {
+    'G', 'A', '+/-', 'PIM', 'FOW', 'ATOI', 'SOG', 'HIT', 'BLK', 'STP', 'PPP', 'SHP', 'W ', 'SV', 'GAA', 'SV%', 'SO'
+}
+BASKETBALL_CATEGORY_COLS = {
+    'FG%', 'FT%', '3PM', 'REB', 'AST', 'STL', 'BLK', 'TO', 'PTS'
+}
+CATEGORY_COLS = HOCKEY_CATEGORY_COLS | BASKETBALL_CATEGORY_COLS
 
 
 def _calc_power_coeff(x):
@@ -69,9 +75,9 @@ def _export_past_matchup_stats(each_category_type_flag, categories, matchup_pair
     if minutes is not None:
         extremum_cols.append('MIN')
 
-    num_cols = set(df.columns) - {'Team', 'League', 'Score', 'ER', 'ExpScore'}
+    num_cols = set(df.columns) - {'Team', 'League', 'Score', 'ER', 'ExpScore', 'ATOI'}
     styler = df.style.format('{:g}', subset=pd.IndexSlice[df_teams.index, num_cols - {*categories, 'MIN'}]).\
-        format('{:g}', subset=pd.IndexSlice[df.index, categories]).\
+        format('{:g}', subset=pd.IndexSlice[df.index, set(categories) - {'ATOI'}]).\
         set_table_styles(utils.STYLES).set_table_attributes(utils.ATTRS).hide_index().\
         apply(styling.color_extremums, subset=pd.IndexSlice[df.index, extremum_cols]).\
         apply(styling.color_place_column, subset=pd.IndexSlice[df_teams.index, places_cols])
@@ -88,7 +94,7 @@ def _format_value(x):
 def _get_best_and_worst_values(table, col):
     if col in CATEGORY_COLS | {'MIN'}:
         extremums = (table[col].max(), table[col].min())
-        return extremums[::-1] if col == 'TO' else extremums
+        return extremums[::-1] if col in ['TO', 'GAA'] else extremums
     else:
         scores_for_sort = []
         for sc in table[col]:
@@ -146,7 +152,7 @@ def _get_expected_category_probs(score_pairs, category):
     result = {}
     for team, sc in score_pairs:
         counts = np.array([np.sum(scores < sc), np.sum(scores > sc), np.sum(scores == sc) - 1])
-        result[team] = counts[[1, 0, 2]] / (len(scores) - 1) if category == 'TO' else counts / (len(scores) - 1)
+        result[team] = counts[[1, 0, 2]] / (len(scores) - 1) if category in ['TO', 'GAA'] else counts / (len(scores) - 1)
     return result
 
 
@@ -184,14 +190,14 @@ def _get_matchup_pairs(scoreboard_html, league_name, league_id):
         team_names = [o.findAll('div', {'class': 'ScoreCell__TeamName'})[0].text for o in opponents]
         team_ids = [re.findall(r'teamId=(\d+)', o.findAll('a', {'class': 'truncate'})[0]['href'])[0] for o in opponents]
         teams = [(team_name, team_id, league_name, league_id) for team_name, team_id in zip(team_names, team_ids)]
-
-        rows = m.findAll('tr', {'Table2__tr'})
-        categories = [header.text for header in rows[0].findAll('th', {'Table2__th'})[1:]]
-        first_team_stats = [data.text for data in rows[1].findAll('td', {'Table2__td'})[1:]]
-        second_team_stats = [data.text for data in rows[2].findAll('td', {'Table2__td'})[1:]]
+        rows = m.findAll('tr', {'class': 'Table__TR'})
+        categories = [header.text for header in rows[-3].findAll('th', {'class': 'Table__TH'})[1:]]
+        categories = [cat if cat != 'W' else 'W ' for cat in categories]
+        first_team_stats = [data.text for data in rows[-2].findAll('td', {'class': 'Table__TD'})[1:]]
+        second_team_stats = [data.text for data in rows[-1].findAll('td', {'class': 'Table__TD'})[1:]]
         pairs.append(
-            ((teams[0], [(cat, float(stat)) for cat, stat in zip(categories, first_team_stats)]),
-             (teams[1], [(cat, float(stat)) for cat, stat in zip(categories, second_team_stats)]))
+            ((teams[0], [(cat, float(stat) if cat not in {'ATOI'} else stat) for cat, stat in zip(categories, first_team_stats)]),
+             (teams[1], [(cat, float(stat) if cat not in {'ATOI'} else stat) for cat, stat in zip(categories, second_team_stats)]))
         )
     return pairs, categories
 
@@ -201,11 +207,11 @@ def _get_pair_result(team_stat, opp_stat, categories, tiebreaker):
     lose_count = 0
     for index, cat in enumerate(categories):
         if team_stat[index] > opp_stat[index]:
-            lose_count += (cat == 'TO') * ((tiebreaker == cat) + 2) / 2
-            win_count += (cat != 'TO') * ((tiebreaker == cat) + 2) / 2
+            lose_count += (cat in ['TO', 'GAA']) * ((tiebreaker == cat) + 2) / 2
+            win_count += (cat not in ['TO', 'GAA']) * ((tiebreaker == cat) + 2) / 2
         elif team_stat[index] < opp_stat[index]:
-            lose_count += (cat != 'TO') * ((tiebreaker == cat) + 2) / 2
-            win_count += (cat == 'TO')  * ((tiebreaker == cat) + 2) / 2
+            lose_count += (cat not in ['TO', 'GAA']) * ((tiebreaker == cat) + 2) / 2
+            win_count += (cat in ['TO', 'GAA'])  * ((tiebreaker == cat) + 2) / 2
     result = 'D' if win_count == lose_count else 'W' if win_count > lose_count else 'L'
     return result
 
@@ -214,7 +220,7 @@ def _get_places_data(category_stats, categories):
     places_data = defaultdict(list)
     for index, cat in enumerate(categories):
         pairs = [(team, category_stats[team][index]) for team in category_stats]
-        pairs_sorted = sorted(pairs, key=itemgetter(1), reverse=False if cat == 'TO' else True)
+        pairs_sorted = sorted(pairs, key=itemgetter(1), reverse=False if cat in ['TO', 'GAA'] else True)
         places = utils.get_places(pairs_sorted)
         for team in places:
             places_data[team].append(places[team])
